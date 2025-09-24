@@ -30,16 +30,16 @@ Are there any accessibility needs or preferences?
 Do you have a preference for energy rating?
     - SCALE, whatever it is
 
-
-How important is future value for you?
-    - SCALE, 0 - 10, (requires a score of that)
-How important is connectivity for you?
-    - SCALE, 0 - 10, (requires a score of that)
 How important is current value for you?
     - SCALE, 0 - 10, (requires a score of that)
-How important are restaurants and entertainment for you?
+How important is future value for you?
+    - SCALE, 0 - 10, (requires a score of that)
+How important is transport connectivity for you?
     - SCALE, 0 - 10, (requires a score of that)
 How important are restaurants and entertainment for you?
     - SCALE, 0 - 10, (requires a score of that)
-
+How important are restaurants and entertainment for you?
+    - SCALE, 0 - 10, (requires a score of that)
+How important is safety for you?
+    - SCALE, 0 - 10, (requires a score of that)
 
