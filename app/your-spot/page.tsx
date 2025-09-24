@@ -1,0 +1,154 @@
+'use client';
+
+import { FaPlus, FaMicrophone, FaMapMarkerAlt } from 'react-icons/fa';
+import { FiActivity, FiHome } from 'react-icons/fi';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
+export default function YourSpotPage() {
+  const router = useRouter();
+  const phrases = [
+    'college flat',
+    'dream cottage', 
+    'home away from home',
+    'new family home',
+    'next adventure',
+    'spot'
+  ];
+
+  const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
+  const [displayedText, setDisplayedText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const [recognition, setRecognition] = useState<any>(null);
+
+  // Initialize speech recognition
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
+      const SpeechRecognition = (window as any).webkitSpeechRecognition;
+      const recognitionInstance = new SpeechRecognition();
+      
+      recognitionInstance.continuous = false;
+      recognitionInstance.interimResults = false;
+      recognitionInstance.lang = 'en-US';
+
+      recognitionInstance.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognitionInstance.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInputValue(transcript);
+        setIsListening(false);
+      };
+
+      recognitionInstance.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+
+      recognitionInstance.onend = () => {
+        setIsListening(false);
+      };
+
+      setRecognition(recognitionInstance);
+    }
+  }, []);
+
+  const startListening = () => {
+    if (recognition && !isListening) {
+      recognition.start();
+    }
+  };
+
+  const stopListening = () => {
+    if (recognition && isListening) {
+      recognition.stop();
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (inputValue.trim()) {
+      router.push(`/your-spot?q=${encodeURIComponent(inputValue.trim())}`);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSubmit(e);
+    }
+  };
+
+  useEffect(() => {
+    const currentPhrase = phrases[currentPhraseIndex];
+    
+    const timeout = setTimeout(() => {
+      if (!isDeleting) {
+        // Typing effect
+        if (displayedText.length < currentPhrase.length) {
+          setDisplayedText(currentPhrase.slice(0, displayedText.length + 1));
+        } else {
+          // Start deleting after a pause
+          setTimeout(() => setIsDeleting(true), 1500);
+        }
+      } else {
+        // Deleting effect
+        if (displayedText.length > 0) {
+          setDisplayedText(displayedText.slice(0, -1));
+        } else {
+          // Move to next phrase
+          setIsDeleting(false);
+          setCurrentPhraseIndex((prev) => (prev + 1) % phrases.length);
+        }
+      }
+    }, isDeleting ? 100 : 150);
+
+    return () => clearTimeout(timeout);
+  }, [displayedText, isDeleting, currentPhraseIndex, phrases]);
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-white">
+      <div className="text-center mb-6">
+        <div className="text-2xl text-gray-600">
+          Find your <span className="text-green-600 font-medium min-h-[2rem] inline-block">
+            {displayedText}
+            <span className="animate-pulse">|</span>
+          </span>
+        </div>
+      </div>
+      <div className="w-full max-w-2xl">
+        <form onSubmit={handleSubmit}>
+          <div className="flex items-center bg-white rounded-full shadow-md px-6 py-4">
+            <FaPlus className="text-green-400 mr-4" />
+            <input
+              type="text"
+              placeholder="Enter a place you'd like to explore"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyPress={handleKeyPress}
+              className="flex-grow bg-transparent outline-none text-lg text-gray-700"
+            />
+            <button
+              onClick={isListening ? stopListening : startListening}
+              className={`mx-4 transition-colors ${
+                isListening 
+                  ? 'text-red-500 hover:text-red-600' 
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
+              title={isListening ? 'Stop listening' : 'Start voice input'}
+              aria-label={isListening ? 'Stop listening' : 'Start voice input'}
+              type="button"
+            >
+              <FaMicrophone />
+            </button>
+            <div className="w-10 h-10 flex items-center justify-center bg-green-100 rounded-full">
+              <FiActivity className="text-green-400 text-xl" />
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
