@@ -9,7 +9,12 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<'any-spot' | 'your-spot'>('any-spot');
 
   const handleToggle = (tab: 'any-spot' | 'your-spot') => {
-    setActiveTab(tab);
+    // Navigate to the clean URL
+    if (tab === 'any-spot') {
+      window.location.href = '/any-spot';
+    } else {
+      window.location.href = '/your-spot';
+    }
   };
 
   return (
