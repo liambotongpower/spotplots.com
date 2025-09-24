@@ -9,12 +9,8 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<'any-spot' | 'your-spot'>('any-spot');
 
   const handleToggle = (tab: 'any-spot' | 'your-spot') => {
-    // Navigate to the clean URL
-    if (tab === 'any-spot') {
-      window.location.href = '/any-spot';
-    } else {
-      window.location.href = '/your-spot';
-    }
+    // Switch content locally without navigation
+    setActiveTab(tab);
   };
 
   return (
