@@ -9,7 +9,6 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<'any-spot' | 'your-spot'>('any-spot');
 
   const handleToggle = (tab: 'any-spot' | 'your-spot') => {
-    // Switch content locally without navigation
     setActiveTab(tab);
   };
 

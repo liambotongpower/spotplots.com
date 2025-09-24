@@ -2,7 +2,7 @@
 
 import { FaPlus, FaMicrophone, FaHome, FaSearch } from 'react-icons/fa';
 import { FiActivity } from 'react-icons/fi';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function YourSpotPage() {
@@ -10,14 +10,14 @@ export default function YourSpotPage() {
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
   const isResultsView = !!query;
-  const phrases = [
+  const phrases = useMemo(() => [
     'college flat',
     'dream cottage', 
     'home away from home',
     'new family home',
     'next adventure',
     'spot'
-  ];
+  ], []);
 
   const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
   const [displayedText, setDisplayedText] = useState('');
@@ -172,7 +172,7 @@ export default function YourSpotPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center text-gray-600">
             <h1 className="text-2xl font-medium mb-4">Search results will appear here...</h1>
-            <p className="text-gray-500">Query: "{query}"</p>
+            <p className="text-gray-500">Query: &quot;{query}&quot;</p>
           </div>
         </div>
       </div>
