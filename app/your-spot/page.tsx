@@ -1,9 +1,10 @@
 'use client';
 
 import { FaPlus, FaMicrophone, FaHome, FaSearch } from 'react-icons/fa';
-import { FiActivity } from 'react-icons/fi';
-import { useState, useEffect, useMemo } from 'react';
+import { } from 'react-icons/fi';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import CountyDropdown from '../components/CountyDropdown';
 
 export default function YourSpotPage() {
   const router = useRouter();
@@ -25,6 +26,9 @@ export default function YourSpotPage() {
   const [inputValue, setInputValue] = useState(query);
   const [isListening, setIsListening] = useState(false);
   const [recognition, setRecognition] = useState<any>(null);
+  const [showCountyDropdown, setShowCountyDropdown] = useState(false);
+  const [selectedCounties, setSelectedCounties] = useState<string[]>([]);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
   // Initialize speech recognition
   useEffect(() => {
@@ -76,6 +80,27 @@ export default function YourSpotPage() {
     if (inputValue.trim()) {
       router.push(`/your-spot?q=${encodeURIComponent(inputValue.trim())}`);
     }
+  };
+
+  const handleToggleCounty = (county: string) => {
+    setSelectedCounties((prev) => {
+      const exists = prev.includes(county);
+      if (exists) return prev.filter((c) => c !== county);
+      return [...prev, county];
+    });
+  };
+
+  const handleApplyCounties = () => {
+    const queryText = selectedCounties.join(', ');
+    setInputValue(queryText);
+    setShowCountyDropdown(false);
+    if (queryText.trim()) {
+      router.push(`/your-spot?q=${encodeURIComponent(queryText.trim())}`);
+    }
+  };
+
+  const handleClearCounties = () => {
+    setSelectedCounties([]);
   };
 
   const goHome = () => {
@@ -135,12 +160,14 @@ export default function YourSpotPage() {
               {/* Search Bar */}
               <div className="max-w-2xl w-full mx-8">
                 <form onSubmit={handleSubmit}>
-                  <div className="flex items-center bg-white rounded-full shadow-sm border border-gray-300 px-4 py-2">
+                  <div ref={searchContainerRef} className="relative">
+                    <div className="flex items-center bg-white rounded-full shadow-sm border border-gray-300 px-4 py-2">
                     <FaSearch className="text-green-400 mr-3" />
                     <input
                       type="text"
                       value={inputValue}
-                      onChange={(e) => setInputValue(e.target.value)}
+                      onChange={(e) => { setInputValue(e.target.value); setShowCountyDropdown(true); }}
+                      onFocus={() => setShowCountyDropdown(true)}
                       onKeyPress={handleKeyPress}
                       className="flex-grow bg-transparent outline-none text-gray-700"
                       placeholder="Enter a place you'd like to explore"
@@ -158,9 +185,17 @@ export default function YourSpotPage() {
                     >
                       <FaMicrophone />
                     </button>
-                    <div className="w-8 h-8 flex items-center justify-center bg-green-100 rounded-full">
-                      <FiActivity className="text-green-400 text-sm" />
+                    
                     </div>
+                    <CountyDropdown
+                      inputValue={inputValue}
+                      isVisible={showCountyDropdown}
+                      selected={selectedCounties}
+                      onToggle={handleToggleCounty}
+                      onApply={handleApplyCounties}
+                      onClear={handleClearCounties}
+                      onClose={() => setShowCountyDropdown(false)}
+                    />
                   </div>
                 </form>
               </div>
@@ -192,13 +227,15 @@ export default function YourSpotPage() {
       </div>
       <div className="w-full max-w-2xl">
         <form onSubmit={handleSubmit}>
-          <div className="flex items-center bg-white rounded-full shadow-md px-6 py-4">
+          <div ref={searchContainerRef} className="relative">
+            <div className="flex items-center bg-white rounded-full shadow-md px-6 py-4">
             <FaPlus className="text-green-400 mr-4" />
             <input
               type="text"
               placeholder="Enter a place you'd like to explore"
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+              onChange={(e) => { setInputValue(e.target.value); setShowCountyDropdown(true); }}
+              onFocus={() => setShowCountyDropdown(true)}
               onKeyPress={handleKeyPress}
               className="flex-grow bg-transparent outline-none text-lg text-gray-700"
             />
@@ -215,9 +252,17 @@ export default function YourSpotPage() {
             >
               <FaMicrophone />
             </button>
-            <div className="w-10 h-10 flex items-center justify-center bg-green-100 rounded-full">
-              <FiActivity className="text-green-400 text-xl" />
+            
             </div>
+            <CountyDropdown
+              inputValue={inputValue}
+              isVisible={showCountyDropdown}
+              selected={selectedCounties}
+              onToggle={handleToggleCounty}
+              onApply={handleApplyCounties}
+              onClear={handleClearCounties}
+              onClose={() => setShowCountyDropdown(false)}
+            />
           </div>
         </form>
       </div>

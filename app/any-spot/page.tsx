@@ -1,7 +1,7 @@
 'use client';
 
 import { FaPlus, FaMicrophone, FaHome, FaSearch } from 'react-icons/fa';
-import { FiActivity } from 'react-icons/fi';
+import { } from 'react-icons/fi';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AddressDropdown from '../components/AddressDropdown';
@@ -194,9 +194,7 @@ export default function AnySpotPage() {
                       >
                         <FaMicrophone />
                       </button>
-                      <div className="w-8 h-8 flex items-center justify-center bg-blue-100 rounded-full">
-                        <FiActivity className="text-blue-400 text-sm" />
-                      </div>
+                    
                     </div>
                     <AddressDropdown
                       inputValue={inputValue}
@@ -260,9 +258,7 @@ export default function AnySpotPage() {
               >
                 <FaMicrophone />
               </button>
-              <div className="w-10 h-10 flex items-center justify-center bg-blue-100 rounded-full">
-                <FiActivity className="text-blue-400 text-xl" />
-              </div>
+            
             </div>
             <AddressDropdown
               inputValue={inputValue}
