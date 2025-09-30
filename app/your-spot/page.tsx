@@ -4,7 +4,11 @@ import { FaPlus, FaMicrophone, FaHome, FaSearch } from 'react-icons/fa';
 import { } from 'react-icons/fi';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import CountyDropdown from '../components/CountyDropdown';
+import CountyDropdown, { ALL_COUNTIES } from '../components/CountyDropdown';
+import QuestionsForm from '../components/QuestionsForm';
+import ListingsResults from '../components/ListingsResults';
+import PaginationControls from '../components/PaginationControls';
+import { Filters, defaultFilters } from '../lib/schema';
 
 export default function YourSpotPage() {
   const router = useRouter();
@@ -28,7 +32,55 @@ export default function YourSpotPage() {
   const [recognition, setRecognition] = useState<any>(null);
   const [showCountyDropdown, setShowCountyDropdown] = useState(false);
   const [selectedCounties, setSelectedCounties] = useState<string[]>([]);
+  const [filters, setFilters] = useState<Filters>({ ...defaultFilters });
+  const [listings, setListings] = useState<any[]>([]);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  // Keep input and selected counties in sync with URL (?q=...)
+  useEffect(() => {
+    setInputValue(query);
+
+    // Parse counties from q (comma or space separated)
+    const tokens = query
+      .split(/[,\s]+/)
+      .map((t) => t.trim())
+      .filter(Boolean);
+    const canonical = new Set(ALL_COUNTIES.map((c) => c.toLowerCase()));
+    const picked = tokens
+      .map((t) => t.toLowerCase())
+      .filter((t) => canonical.has(t));
+    const pickedUniqueLower = Array.from(new Set(picked));
+    const pickedProper = pickedUniqueLower.map((t) =>
+      ALL_COUNTIES.find((c) => c.toLowerCase() === t) as string
+    );
+    setSelectedCounties(pickedProper);
+
+    // Update filters and trigger search when we have a query
+    if (query && pickedProper.length > 0) {
+      const nextFilters: Filters = { ...defaultFilters, counties: pickedProper, page: 1 };
+      setFilters(nextFilters);
+      (async () => {
+        setIsLoading(true);
+        try {
+          const resp = await fetch('/api/listings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(nextFilters),
+          });
+          const data = await resp.json();
+          setListings(Array.isArray(data.listings) ? data.listings : []);
+          setHasNextPage(!!data.hasNextPage);
+        } catch (e) {
+          setListings([]);
+          setHasNextPage(false);
+        } finally {
+          setIsLoading(false);
+        }
+      })();
+    }
+  }, [query]);
 
   // Initialize speech recognition
   useEffect(() => {
@@ -204,10 +256,93 @@ export default function YourSpotPage() {
         </div>
 
         {/* Main Content */}
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center text-gray-600">
-            <h1 className="text-2xl font-medium mb-4">Search results will appear here...</h1>
-            <p className="text-gray-500">Query: &quot;{query}&quot;</p>
+        <div className="flex">
+          {/* Left Margin - Selection Tools */}
+          <div className="w-80 flex-shrink-0 px-6">
+            <QuestionsForm
+              key={filters.counties.join(',')} // Force re-render when counties change
+              initialFilters={filters}
+              onSearch={async (f) => {
+                setFilters(f);
+                setIsLoading(true);
+                try {
+                  const resp = await fetch('/api/listings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(f),
+                  });
+                  const data = await resp.json();
+                  setListings(Array.isArray(data.listings) ? data.listings : []);
+                  setHasNextPage(!!data.hasNextPage);
+                } catch (e) {
+                  setListings([]);
+                  setHasNextPage(false);
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+            />
+          </div>
+          
+          {/* Main Content Area */}
+          <div className="flex-1 px-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-gray-700 font-medium">Results</div>
+              <PaginationControls
+                page={filters.page}
+                hasPrev={filters.page > 1}
+                hasNext={hasNextPage}
+                onPrev={async () => {
+                  if (filters.page <= 1) return;
+                  const next = { ...filters, page: filters.page - 1 };
+                  setFilters(next);
+                  setIsLoading(true);
+                  try {
+                    const resp = await fetch('/api/listings', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(next),
+                    });
+                    const data = await resp.json();
+                    setListings(Array.isArray(data.listings) ? data.listings : []);
+                    setHasNextPage(!!data.hasNextPage);
+                  } catch (e) {
+                    // ignore
+                  } finally {
+                    setIsLoading(false);
+                  }
+                }}
+                onNext={async () => {
+                  const next = { ...filters, page: filters.page + 1 };
+                  setFilters(next);
+                  setIsLoading(true);
+                  try {
+                    const resp = await fetch('/api/listings', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(next),
+                    });
+                    const data = await resp.json();
+                    setListings(Array.isArray(data.listings) ? data.listings : []);
+                    setHasNextPage(!!data.hasNextPage);
+                  } catch (e) {
+                    // ignore
+                  } finally {
+                    setIsLoading(false);
+                  }
+                }}
+              />
+            </div>
+            {isLoading ? (
+              <div className="text-gray-500 text-sm">Loading…</div>
+            ) : (
+              <ListingsResults listings={listings} />
+            )}
+          </div>
+          
+          {/* Right Margin */}
+          <div className="w-80 flex-shrink-0 px-6">
+            {/* Right margin content can be added here if needed */}
           </div>
         </div>
       </div>

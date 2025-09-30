@@ -210,10 +210,23 @@ export default function AnySpotPage() {
         </div>
 
         {/* Main Content */}
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center text-gray-600">
-            <h1 className="text-2xl font-medium mb-4">Search results will appear here...</h1>
-            <p className="text-gray-500">Query: &quot;{query}&quot;</p>
+        <div className="flex">
+          {/* Left Margin */}
+          <div className="w-80 flex-shrink-0 px-6">
+            {/* Left margin content can be added here if needed */}
+          </div>
+          
+          {/* Main Content Area */}
+          <div className="flex-1 px-6">
+            <div className="text-center text-gray-600">
+              <h1 className="text-2xl font-medium mb-4">Search results will appear here...</h1>
+              <p className="text-gray-500">Query: &quot;{query}&quot;</p>
+            </div>
+          </div>
+          
+          {/* Right Margin */}
+          <div className="w-80 flex-shrink-0 px-6">
+            {/* Right margin content can be added here if needed */}
           </div>
         </div>
       </div>

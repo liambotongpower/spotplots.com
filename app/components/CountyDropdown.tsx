@@ -12,14 +12,11 @@ interface CountyDropdownProps {
   onClose: () => void;
 }
 
-const ALL_COUNTIES: string[] = [
-  // Republic of Ireland
-  'Carlow', 'Cavan', 'Clare', 'Cork', 'Donegal', 'Dublin', 'Galway',
-  'Kerry', 'Kildare', 'Kilkenny', 'Laois', 'Leitrim', 'Limerick', 'Longford',
-  'Louth', 'Mayo', 'Meath', 'Monaghan', 'Offaly', 'Roscommon', 'Sligo',
-  'Tipperary', 'Waterford', 'Westmeath', 'Wexford', 'Wicklow',
-  // Northern Ireland
-  'Antrim', 'Armagh', 'Down', 'Fermanagh', 'Derry', 'Londonderry', 'Tyrone'
+export const ALL_COUNTIES: string[] = [
+  'Antrim', 'Armagh', 'Carlow', 'Cavan', 'Clare', 'Cork', 'Derry', 'Donegal', 'Down',
+  'Dublin', 'Fermanagh', 'Galway', 'Kerry', 'Kildare', 'Kilkenny', 'Laois', 'Leitrim',
+  'Limerick', 'Longford', 'Louth', 'Mayo', 'Meath', 'Monaghan', 'Offaly', 'Roscommon',
+  'Sligo', 'Tipperary', 'Tyrone', 'Waterford', 'Westmeath', 'Wexford', 'Wicklow'
 ];
 
 export default function CountyDropdown({

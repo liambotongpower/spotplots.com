@@ -1,0 +1,284 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import { defaultFilters, Filters } from '../lib/schema';
+import { loadFilters, saveFilters } from '../lib/persistence';
+import { validateFilters } from '../lib/validation';
+import { searchTypes, propertyTypes, facilitiesAll, sortTypes } from '../lib/enumMaps';
+
+type Props = {
+  onSearch: (filters: Filters) => void;
+  initialFilters?: Partial<Filters>;
+};
+
+export default function QuestionsForm({ onSearch, initialFilters }: Props) {
+  const [filters, setFilters] = useState<Filters>({ ...defaultFilters });
+  const [errors, setErrors] = useState<string[]>([]);
+
+  useEffect(() => {
+    const saved = loadFilters();
+    if (saved) setFilters((prev) => ({ ...prev, ...saved }));
+  }, []);
+
+  // Merge in initial filters coming from parent (e.g. parsed from URL)
+  useEffect(() => {
+    if (!initialFilters) return;
+    setFilters((prev) => ({ ...prev, ...initialFilters }));
+  }, [initialFilters]);
+
+  // Force update when initialFilters change significantly
+  useEffect(() => {
+    if (initialFilters && initialFilters.counties && initialFilters.counties.length > 0) {
+      setFilters((prev) => ({ ...prev, counties: initialFilters.counties! }));
+    }
+  }, [initialFilters?.counties]);
+
+  useEffect(() => {
+    saveFilters(filters);
+  }, [filters]);
+
+
+  const submit = () => {
+    const errs = validateFilters(filters);
+    setErrors(errs);
+    if (errs.length === 0) {
+      onSearch({ ...filters, page: 1 });
+    }
+  };
+
+  return (
+    <div className="space-y-6 text-black">
+
+      {/* Search Type */}
+      <div>
+        <label className="block text-sm font-medium text-black">Search Type</label>
+        <select
+          className="mt-2 border rounded-md px-3 py-2 text-sm text-black bg-white"
+          value={filters.search_type || ''}
+          title="Search Type"
+          onChange={(e) => setFilters((p) => ({ ...p, search_type: e.target.value || null }))}
+        >
+          <option value="">Select...</option>
+          {searchTypes.map((t) => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Property Type */}
+      <div>
+        <label className="block text-sm font-medium text-black">Property Type</label>
+        <select
+          className="mt-2 border rounded-md px-3 py-2 text-sm text-black bg-white"
+          value={filters.property_type || ''}
+          title="Property Type"
+          onChange={(e) => setFilters((p) => ({ ...p, property_type: e.target.value || null }))}
+        >
+          <option value="">Select...</option>
+          {propertyTypes.map((t) => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Bedrooms */}
+      <div>
+        <label className="block text-sm font-medium text-black mb-2">Bedrooms</label>
+        <div className="relative">
+          <div className="flex justify-between text-xs text-gray-600 mb-2">
+            <span>Min: {filters.min_beds ?? 0}</span>
+            <span>Max: {filters.max_beds ?? 10}</span>
+          </div>
+          <div className="relative h-2 bg-gray-200 rounded-lg">
+            <input
+              type="range"
+              min={0}
+              max={10}
+              step={1}
+              className="absolute w-full h-2 bg-transparent appearance-none cursor-pointer slider"
+              value={filters.min_beds ?? 0}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                const maxValue = filters.max_beds ?? 10;
+                if (value <= maxValue) {
+                  setFilters((p) => ({ ...p, min_beds: value }));
+                }
+              }}
+              aria-label="Minimum bedrooms"
+            />
+            <input
+              type="range"
+              min={0}
+              max={10}
+              step={1}
+              className="absolute w-full h-2 bg-transparent appearance-none cursor-pointer slider"
+              value={filters.max_beds ?? 10}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                const minValue = filters.min_beds ?? 0;
+                if (value >= minValue) {
+                  setFilters((p) => ({ ...p, max_beds: value }));
+                }
+              }}
+              aria-label="Maximum bedrooms"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Bathrooms */}
+      <div>
+        <label className="block text-sm font-medium text-black mb-2">Bathrooms</label>
+        <div className="relative">
+          <div className="flex justify-between text-xs text-gray-600 mb-2">
+            <span>Min: {filters.min_baths ?? 0}</span>
+            <span>Max: {filters.max_baths ?? 10}</span>
+          </div>
+          <div className="relative h-2 bg-gray-200 rounded-lg">
+            <input
+              type="range"
+              min={0}
+              max={10}
+              step={1}
+              className="absolute w-full h-2 bg-transparent appearance-none cursor-pointer slider"
+              value={filters.min_baths ?? 0}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                const maxValue = filters.max_baths ?? 10;
+                if (value <= maxValue) {
+                  setFilters((p) => ({ ...p, min_baths: value }));
+                }
+              }}
+              aria-label="Minimum bathrooms"
+            />
+            <input
+              type="range"
+              min={0}
+              max={10}
+              step={1}
+              className="absolute w-full h-2 bg-transparent appearance-none cursor-pointer slider"
+              value={filters.max_baths ?? 10}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                const minValue = filters.min_baths ?? 0;
+                if (value >= minValue) {
+                  setFilters((p) => ({ ...p, max_baths: value }));
+                }
+              }}
+              aria-label="Maximum bathrooms"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Price */}
+      <div>
+        <label className="block text-sm font-medium text-black mb-2">Price (€)</label>
+        <div className="relative">
+          <div className="flex justify-between text-xs text-gray-600 mb-2">
+            <span>Min: €{filters.min_price?.toLocaleString() ?? '1,000'}</span>
+            <span>Max: €{filters.max_price?.toLocaleString() ?? '10,000,000'}</span>
+          </div>
+          <div className="relative h-2 bg-gray-200 rounded-lg">
+            <input
+              type="range"
+              min={1000}
+              max={10000000}
+              step={1000}
+              className="absolute w-full h-2 bg-transparent appearance-none cursor-pointer slider"
+              value={filters.min_price ?? 1000}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                const maxValue = filters.max_price ?? 10000000;
+                if (value <= maxValue) {
+                  setFilters((p) => ({ ...p, min_price: value }));
+                }
+              }}
+              aria-label="Minimum price"
+            />
+            <input
+              type="range"
+              min={1000}
+              max={10000000}
+              step={1000}
+              className="absolute w-full h-2 bg-transparent appearance-none cursor-pointer slider"
+              value={filters.max_price ?? 10000000}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                const minValue = filters.min_price ?? 1000;
+                if (value >= minValue) {
+                  setFilters((p) => ({ ...p, max_price: value }));
+                }
+              }}
+              aria-label="Maximum price"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Facilities */}
+      <div>
+        <label className="block text-sm font-medium text-black">Facilities</label>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          {facilitiesAll.map((f) => {
+            const checked = filters.facilities.includes(f);
+            return (
+              <label key={f} className="inline-flex items-center text-sm text-black">
+                <input
+                  type="checkbox"
+                  className="mr-2"
+                  checked={checked}
+                  onChange={() =>
+                    setFilters((p) => ({
+                      ...p,
+                      facilities: checked ? p.facilities.filter((x) => x !== f) : [...p.facilities, f],
+                    }))
+                  }
+                />
+                {f}
+              </label>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Sort */}
+      <div>
+        <label className="block text-sm font-medium text-black">Sort</label>
+        <select
+          className="mt-2 border rounded-md px-3 py-2 text-sm text-black bg-white"
+          value={filters.sort_type || ''}
+          title="Sort order"
+          onChange={(e) => setFilters((p) => ({ ...p, sort_type: e.target.value || null }))}
+        >
+          <option value="">Select...</option>
+          {sortTypes.map((t) => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Errors */}
+      {errors.length > 0 && (
+        <div className="text-red-600 text-sm">
+          {errors.map((e) => (
+            <div key={e}>{e}</div>
+          ))}
+        </div>
+      )}
+
+      {/* Submit */}
+      <div>
+        <button
+          type="button"
+          onClick={submit}
+          className="px-4 py-2 rounded-md bg-green-600 text-white text-sm"
+        >
+          Search
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
