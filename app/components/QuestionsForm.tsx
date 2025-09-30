@@ -86,8 +86,44 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
         <label className="block text-sm font-medium text-black mb-2">Bedrooms</label>
         <div className="relative">
           <div className="flex justify-between text-xs text-gray-600 mb-2">
-            <span>Min: {filters.min_beds ?? 0}</span>
-            <span>Max: {filters.max_beds ?? 10}</span>
+            <div className="flex items-center gap-1">
+              <span>Min:</span>
+              <input
+                type="number"
+                min={0}
+                max={10}
+                value={filters.min_beds ?? 0}
+                onChange={(e) => {
+                  const value = Number(e.target.value);
+                  const maxValue = filters.max_beds ?? 10;
+                  if (value >= 0 && value <= 10 && value <= maxValue) {
+                    setFilters((p) => ({ ...p, min_beds: value }));
+                  }
+                }}
+                className="w-12 px-1 py-0.5 text-xs border rounded text-center"
+                aria-label="Minimum bedrooms"
+                title="Minimum bedrooms"
+              />
+            </div>
+            <div className="flex items-center gap-1">
+              <span>Max:</span>
+              <input
+                type="number"
+                min={0}
+                max={10}
+                value={filters.max_beds ?? 10}
+                onChange={(e) => {
+                  const value = Number(e.target.value);
+                  const minValue = filters.min_beds ?? 0;
+                  if (value >= 0 && value <= 10 && value >= minValue) {
+                    setFilters((p) => ({ ...p, max_beds: value }));
+                  }
+                }}
+                className="w-12 px-1 py-0.5 text-xs border rounded text-center"
+                aria-label="Maximum bedrooms"
+                title="Maximum bedrooms"
+              />
+            </div>
           </div>
           <div className="relative h-2 bg-gray-200 rounded-lg">
             <input
@@ -131,8 +167,44 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
         <label className="block text-sm font-medium text-black mb-2">Bathrooms</label>
         <div className="relative">
           <div className="flex justify-between text-xs text-gray-600 mb-2">
-            <span>Min: {filters.min_baths ?? 0}</span>
-            <span>Max: {filters.max_baths ?? 10}</span>
+            <div className="flex items-center gap-1">
+              <span>Min:</span>
+              <input
+                type="number"
+                min={0}
+                max={10}
+                value={filters.min_baths ?? 0}
+                onChange={(e) => {
+                  const value = Number(e.target.value);
+                  const maxValue = filters.max_baths ?? 10;
+                  if (value >= 0 && value <= 10 && value <= maxValue) {
+                    setFilters((p) => ({ ...p, min_baths: value }));
+                  }
+                }}
+                className="w-12 px-1 py-0.5 text-xs border rounded text-center"
+                aria-label="Minimum bathrooms"
+                title="Minimum bathrooms"
+              />
+            </div>
+            <div className="flex items-center gap-1">
+              <span>Max:</span>
+              <input
+                type="number"
+                min={0}
+                max={10}
+                value={filters.max_baths ?? 10}
+                onChange={(e) => {
+                  const value = Number(e.target.value);
+                  const minValue = filters.min_baths ?? 0;
+                  if (value >= 0 && value <= 10 && value >= minValue) {
+                    setFilters((p) => ({ ...p, max_baths: value }));
+                  }
+                }}
+                className="w-12 px-1 py-0.5 text-xs border rounded text-center"
+                aria-label="Maximum bathrooms"
+                title="Maximum bathrooms"
+              />
+            </div>
           </div>
           <div className="relative h-2 bg-gray-200 rounded-lg">
             <input
@@ -176,8 +248,46 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
         <label className="block text-sm font-medium text-black mb-2">Price (€)</label>
         <div className="relative">
           <div className="flex justify-between text-xs text-gray-600 mb-2">
-            <span>Min: €{filters.min_price?.toLocaleString() ?? '1,000'}</span>
-            <span>Max: €{filters.max_price?.toLocaleString() ?? '10,000,000'}</span>
+            <div className="flex items-center gap-1">
+              <span>Min:</span>
+              <input
+                type="number"
+                min={1000}
+                max={10000000}
+                step={1000}
+                value={filters.min_price ?? 1000}
+                onChange={(e) => {
+                  const value = Number(e.target.value);
+                  const maxValue = filters.max_price ?? 10000000;
+                  if (value >= 1000 && value <= 10000000 && value <= maxValue) {
+                    setFilters((p) => ({ ...p, min_price: value }));
+                  }
+                }}
+                className="w-20 px-1 py-0.5 text-xs border rounded text-center"
+                aria-label="Minimum price"
+                title="Minimum price"
+              />
+            </div>
+            <div className="flex items-center gap-1">
+              <span>Max:</span>
+              <input
+                type="number"
+                min={1000}
+                max={10000000}
+                step={1000}
+                value={filters.max_price ?? 10000000}
+                onChange={(e) => {
+                  const value = Number(e.target.value);
+                  const minValue = filters.min_price ?? 1000;
+                  if (value >= 1000 && value <= 10000000 && value >= minValue) {
+                    setFilters((p) => ({ ...p, max_price: value }));
+                  }
+                }}
+                className="w-20 px-1 py-0.5 text-xs border rounded text-center"
+                aria-label="Maximum price"
+                title="Maximum price"
+              />
+            </div>
           </div>
           <div className="relative h-2 bg-gray-200 rounded-lg">
             <input
