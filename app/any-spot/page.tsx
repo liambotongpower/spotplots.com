@@ -2,8 +2,9 @@
 
 import { FaPlus, FaMicrophone, FaHome, FaSearch } from 'react-icons/fa';
 import { FiActivity } from 'react-icons/fi';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import AddressDropdown from '../components/AddressDropdown';
 
 export default function AnySpotPage() {
   const router = useRouter();
@@ -40,6 +41,8 @@ export default function AnySpotPage() {
   const [inputValue, setInputValue] = useState(query);
   const [isListening, setIsListening] = useState(false);
   const [recognition, setRecognition] = useState<any>(null);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
   // Initialize speech recognition
   useEffect(() => {
@@ -86,9 +89,25 @@ export default function AnySpotPage() {
     }
   };
 
+  const handleAddressSelect = (suggestion: any) => {
+    const selectedText = suggestion.description;
+    setInputValue(selectedText);
+    setShowDropdown(false);
+    // Immediately navigate using the selected address
+    if (selectedText && selectedText.trim()) {
+      router.push(`/any-spot?q=${encodeURIComponent(selectedText.trim())}`);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value);
+    setShowDropdown(true);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputValue.trim()) {
+      setShowDropdown(false);
       router.push(`/any-spot?q=${encodeURIComponent(inputValue.trim())}`);
     }
   };
@@ -150,32 +169,41 @@ export default function AnySpotPage() {
               {/* Search Bar */}
               <div className="max-w-2xl w-full mx-8">
                 <form onSubmit={handleSubmit}>
-                  <div className="flex items-center bg-white rounded-full shadow-sm border border-gray-300 px-4 py-2">
-                    <FaSearch className="text-blue-400 mr-3" />
-                    <input
-                      type="text"
-                      value={inputValue}
-                      onChange={(e) => setInputValue(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      className="flex-grow bg-transparent outline-none text-gray-700"
-                      placeholder="Enter a place you'd like to explore"
-                    />
-                    <button
-                      onClick={isListening ? stopListening : startListening}
-                      className={`mx-2 transition-colors ${
-                        isListening 
-                          ? 'text-red-500 hover:text-red-600' 
-                          : 'text-gray-400 hover:text-gray-600'
-                      }`}
-                      title={isListening ? 'Stop listening' : 'Start voice input'}
-                      aria-label={isListening ? 'Stop listening' : 'Start voice input'}
-                      type="button"
-                    >
-                      <FaMicrophone />
-                    </button>
-                    <div className="w-8 h-8 flex items-center justify-center bg-blue-100 rounded-full">
-                      <FiActivity className="text-blue-400 text-sm" />
+                  <div ref={searchContainerRef} className="relative">
+                    <div className="flex items-center bg-white rounded-full shadow-sm border border-gray-300 px-4 py-2">
+                      <FaSearch className="text-blue-400 mr-3" />
+                      <input
+                        type="text"
+                        value={inputValue}
+                        onChange={handleInputChange}
+                        onKeyPress={handleKeyPress}
+                        onFocus={() => setShowDropdown(true)}
+                        className="flex-grow bg-transparent outline-none text-gray-700"
+                        placeholder="Enter a place you'd like to explore"
+                      />
+                      <button
+                        onClick={isListening ? stopListening : startListening}
+                        className={`mx-2 transition-colors ${
+                          isListening 
+                            ? 'text-red-500 hover:text-red-600' 
+                            : 'text-gray-400 hover:text-gray-600'
+                        }`}
+                        title={isListening ? 'Stop listening' : 'Start voice input'}
+                        aria-label={isListening ? 'Stop listening' : 'Start voice input'}
+                        type="button"
+                      >
+                        <FaMicrophone />
+                      </button>
+                      <div className="w-8 h-8 flex items-center justify-center bg-blue-100 rounded-full">
+                        <FiActivity className="text-blue-400 text-sm" />
+                      </div>
                     </div>
+                    <AddressDropdown
+                      inputValue={inputValue}
+                      onSelect={handleAddressSelect}
+                      isVisible={showDropdown}
+                      onClose={() => setShowDropdown(false)}
+                    />
                   </div>
                 </form>
               </div>
@@ -207,32 +235,41 @@ export default function AnySpotPage() {
       </div>
       <div className="w-full max-w-2xl">
         <form onSubmit={handleSubmit}>
-          <div className="flex items-center bg-white rounded-full shadow-md px-6 py-4">
-            <FaPlus className="text-blue-400 mr-4" />
-            <input
-              type="text"
-              placeholder="Tell me where you want to go"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={handleKeyPress}
-              className="flex-grow bg-transparent outline-none text-lg text-gray-700"
-            />
-            <button
-              onClick={isListening ? stopListening : startListening}
-              className={`mx-4 transition-colors ${
-                isListening 
-                  ? 'text-red-500 hover:text-red-600' 
-                  : 'text-gray-400 hover:text-gray-600'
-              }`}
-              title={isListening ? 'Stop listening' : 'Start voice input'}
-              aria-label={isListening ? 'Stop listening' : 'Start voice input'}
-              type="button"
-            >
-              <FaMicrophone />
-            </button>
-            <div className="w-10 h-10 flex items-center justify-center bg-blue-100 rounded-full">
-              <FiActivity className="text-blue-400 text-xl" />
+          <div ref={searchContainerRef} className="relative">
+            <div className="flex items-center bg-white rounded-full shadow-md px-6 py-4">
+              <FaPlus className="text-blue-400 mr-4" />
+              <input
+                type="text"
+                placeholder="Tell me where you want to go"
+                value={inputValue}
+                onChange={handleInputChange}
+                onKeyPress={handleKeyPress}
+                onFocus={() => setShowDropdown(true)}
+                className="flex-grow bg-transparent outline-none text-lg text-gray-700"
+              />
+              <button
+                onClick={isListening ? stopListening : startListening}
+                className={`mx-4 transition-colors ${
+                  isListening 
+                    ? 'text-red-500 hover:text-red-600' 
+                    : 'text-gray-400 hover:text-gray-600'
+                }`}
+                title={isListening ? 'Stop listening' : 'Start voice input'}
+                aria-label={isListening ? 'Stop listening' : 'Start voice input'}
+                type="button"
+              >
+                <FaMicrophone />
+              </button>
+              <div className="w-10 h-10 flex items-center justify-center bg-blue-100 rounded-full">
+                <FiActivity className="text-blue-400 text-xl" />
+              </div>
             </div>
+            <AddressDropdown
+              inputValue={inputValue}
+              onSelect={handleAddressSelect}
+              isVisible={showDropdown}
+              onClose={() => setShowDropdown(false)}
+            />
           </div>
         </form>
       </div>
