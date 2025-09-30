@@ -1,7 +1,7 @@
 export type Filters = {
   counties: string[];
-  search_type?: string | null;
-  property_type?: string | null;
+  search_type: string[];
+  property_type: string[];
   min_beds?: number | null;
   max_beds?: number | null;
   min_baths?: number | null;
@@ -9,22 +9,22 @@ export type Filters = {
   min_price?: number | null;
   max_price?: number | null;
   facilities: string[];
-  sort_type?: string | null;
+  sort_type: string[];
   page: number;
 };
 
 export const defaultFilters: Filters = {
   counties: [],
-  search_type: null,
-  property_type: null,
-  min_beds: null,
+  search_type: [],
+  property_type: [],
+  min_beds: 1,
   max_beds: null,
-  min_baths: null,
+  min_baths: 1,
   max_baths: null,
   min_price: 1000,
   max_price: 10000000,
   facilities: [],
-  sort_type: "MOST_RECENT",
+  sort_type: [],
   page: 1,
 };
 

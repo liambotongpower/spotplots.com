@@ -256,93 +256,86 @@ export default function YourSpotPage() {
         </div>
 
         {/* Main Content */}
-        <div className="flex">
-          {/* Left Margin - Selection Tools */}
-          <div className="w-80 flex-shrink-0 px-6">
-            <QuestionsForm
-              key={filters.counties.join(',')} // Force re-render when counties change
-              initialFilters={filters}
-              onSearch={async (f) => {
-                setFilters(f);
-                setIsLoading(true);
-                try {
-                  const resp = await fetch('/api/listings', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(f),
-                  });
-                  const data = await resp.json();
-                  setListings(Array.isArray(data.listings) ? data.listings : []);
-                  setHasNextPage(!!data.hasNextPage);
-                } catch (e) {
-                  setListings([]);
-                  setHasNextPage(false);
-                } finally {
-                  setIsLoading(false);
-                }
-              }}
-            />
-          </div>
-          
-          {/* Main Content Area */}
-          <div className="flex-1 px-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-gray-700 font-medium">Results</div>
-              <PaginationControls
-                page={filters.page}
-                hasPrev={filters.page > 1}
-                hasNext={hasNextPage}
-                onPrev={async () => {
-                  if (filters.page <= 1) return;
-                  const next = { ...filters, page: filters.page - 1 };
-                  setFilters(next);
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="md:col-span-1">
+              <QuestionsForm
+                initialFilters={filters}
+                onSearch={async (f) => {
+                  setFilters(f);
                   setIsLoading(true);
                   try {
                     const resp = await fetch('/api/listings', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(next),
+                      body: JSON.stringify(f),
                     });
                     const data = await resp.json();
                     setListings(Array.isArray(data.listings) ? data.listings : []);
                     setHasNextPage(!!data.hasNextPage);
                   } catch (e) {
-                    // ignore
-                  } finally {
-                    setIsLoading(false);
-                  }
-                }}
-                onNext={async () => {
-                  const next = { ...filters, page: filters.page + 1 };
-                  setFilters(next);
-                  setIsLoading(true);
-                  try {
-                    const resp = await fetch('/api/listings', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(next),
-                    });
-                    const data = await resp.json();
-                    setListings(Array.isArray(data.listings) ? data.listings : []);
-                    setHasNextPage(!!data.hasNextPage);
-                  } catch (e) {
-                    // ignore
+                    setListings([]);
+                    setHasNextPage(false);
                   } finally {
                     setIsLoading(false);
                   }
                 }}
               />
             </div>
-            {isLoading ? (
-              <div className="text-gray-500 text-sm">Loading…</div>
-            ) : (
-              <ListingsResults listings={listings} />
-            )}
-          </div>
-          
-          {/* Right Margin */}
-          <div className="w-80 flex-shrink-0 px-6">
-            {/* Right margin content can be added here if needed */}
+            <div className="md:col-span-2">
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-gray-700 font-medium">Results</div>
+                <PaginationControls
+                  page={filters.page}
+                  hasPrev={filters.page > 1}
+                  hasNext={hasNextPage}
+                  onPrev={async () => {
+                    if (filters.page <= 1) return;
+                    const next = { ...filters, page: filters.page - 1 };
+                    setFilters(next);
+                    setIsLoading(true);
+                    try {
+                      const resp = await fetch('/api/listings', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(next),
+                      });
+                      const data = await resp.json();
+                      setListings(Array.isArray(data.listings) ? data.listings : []);
+                      setHasNextPage(!!data.hasNextPage);
+                    } catch (e) {
+                      // ignore
+                    } finally {
+                      setIsLoading(false);
+                    }
+                  }}
+                  onNext={async () => {
+                    const next = { ...filters, page: filters.page + 1 };
+                    setFilters(next);
+                    setIsLoading(true);
+                    try {
+                      const resp = await fetch('/api/listings', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(next),
+                      });
+                      const data = await resp.json();
+                      setListings(Array.isArray(data.listings) ? data.listings : []);
+                      setHasNextPage(!!data.hasNextPage);
+                    } catch (e) {
+                      // ignore
+                    } finally {
+                      setIsLoading(false);
+                    }
+                  }}
+                />
+              </div>
+              {isLoading ? (
+                <div className="text-gray-500 text-sm">Loading…</div>
+              ) : (
+                <ListingsResults listings={listings} />
+              )}
+            </div>
           </div>
         </div>
       </div>
