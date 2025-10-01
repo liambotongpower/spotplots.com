@@ -5,13 +5,139 @@ import { } from 'react-icons/fi';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AddressDropdown from '../components/AddressDropdown';
-import MapView from '../components/MapView';
+
+// Loader Component
+function Loader() {
+  return (
+    <div className="loader-container">
+      <div className="half"></div>
+      <div className="half"></div>
+      <style jsx>{`
+        .loader-container {
+          --uib-size: 135px;
+          --uib-color: #2563eb;
+          --uib-speed: 1.75s;
+          --uib-bg-opacity: .1;
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          height: var(--uib-size);
+          width: var(--uib-size);
+          transform: rotate(45deg);
+          animation: rotate calc(var(--uib-speed) * 2) ease-in-out infinite;
+        }
+
+        .half {
+          --uib-half-size: calc(var(--uib-size) * 0.435);
+          position: absolute;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: var(--uib-half-size);
+          height: var(--uib-half-size);
+          overflow: hidden;
+          isolation: isolate;
+        }
+
+        .half:first-child {
+          top: 8.25%;
+          left: 8.25%;
+          border-radius: 50% 50% calc(var(--uib-size) / 15);
+        }
+
+        .half:last-child {
+          bottom: 8.25%;
+          right: 8.25%;
+          transform: rotate(180deg);
+          align-self: flex-end;
+          border-radius: 50% 50% calc(var(--uib-size) / 15);
+        }
+
+        .half:last-child::after {
+          animation-delay: calc(var(--uib-speed) * -1);
+        }
+
+        .half::before {
+          content: '';
+          height: 100%;
+          width: 100%;
+          position: absolute;
+          top: 0;
+          left: 0;
+          background-color: var(--uib-color);
+          opacity: var(--uib-bg-opacity);
+          transition: background-color 0.3s ease;
+        }
+
+        .half::after {
+          content: '';
+          position: relative;
+          z-index: 1;
+          display: block;
+          background-color: var(--uib-color);
+          height: 100%;
+          transform: rotate(45deg) translate(-3%, 50%) scaleX(1.2);
+          width: 100%;
+          transform-origin: bottom right;
+          border-radius: 0 0 calc(var(--uib-size) / 20) 0;
+          animation: flow calc(var(--uib-speed) * 2) linear infinite both;
+          transition: background-color 0.3s ease;
+        }
+
+        @keyframes flow {
+          0% {
+            transform: rotate(45deg) translate(-3%, 50%) scaleX(1.2);
+          }
+          30% {
+            transform: rotate(45deg) translate(115%, 50%) scaleX(1.2);
+          }
+
+          30.001%,
+          50% {
+            transform: rotate(0deg) translate(-85%, -85%) scaleX(1);
+          }
+
+          80%,
+          100% {
+            transform: rotate(0deg) translate(0%, 0%) scaleX(1);
+          }
+        }
+
+        @keyframes rotate {
+          0%,
+          30% {
+            transform: rotate(45deg);
+          }
+
+          50%,
+          80% {
+            transform: rotate(225deg);
+          }
+
+          100% {
+            transform: rotate(405deg);
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
 
 export default function AnySpotPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
   const isResultsView = !!query;
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentTask, setCurrentTask] = useState(0);
+  
+  const loadingTasks = useMemo(() => [
+    'Analyzing location',
+    'Searching listings',
+    'Calculating distances',
+    'Fetching property details',
+    'Preparing results'
+  ], []);
   
   const phrases = useMemo(() => [
     'Dublin',
@@ -150,6 +276,34 @@ export default function AnySpotPage() {
     return () => clearTimeout(timeout);
   }, [displayedText, isDeleting, currentPhraseIndex, phrases]);
 
+  // Loading state with 2-second delay
+  useEffect(() => {
+    if (query) {
+      setIsLoading(true);
+      setCurrentTask(0);
+      
+      // Cycle through tasks
+      const taskInterval = setInterval(() => {
+        setCurrentTask((prev) => {
+          if (prev < loadingTasks.length - 1) {
+            return prev + 1;
+          }
+          return prev;
+        });
+      }, 400); // 2000ms / 5 tasks = 400ms per task
+      
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+        clearInterval(taskInterval);
+      }, 2000);
+      
+      return () => {
+        clearTimeout(timer);
+        clearInterval(taskInterval);
+      };
+    }
+  }, [query, loadingTasks.length]);
+
   // Results view (Google-like layout)
   if (isResultsView) {
     return (
@@ -211,24 +365,23 @@ export default function AnySpotPage() {
         </div>
 
         {/* Main Content */}
-        <div className="flex">
-          {/* Left Margin */}
-          <div className="w-80 flex-shrink-0 px-6">
-            {/* Left margin content can be added here if needed */}
-          </div>
-          
-          {/* Main Content Area */}
-          <div className="flex-1 px-6">
-            <div className="text-center text-gray-600">
-              <h1 className="text-2xl font-medium mb-4">Search results will appear here...</h1>
-              <p className="text-gray-500">Query: &quot;{query}&quot;</p>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-12">
+          <div className="flex">
+            {/* Left Margin */}
+            <div className="w-80 flex-shrink-0 px-6">
+              {/* Left margin content can be added here if needed */}
             </div>
-          </div>
-          
-          {/* Right Margin - Map */}
-          <div className="w-96 flex-shrink-0 px-6 py-6">
-            <div className="sticky top-6">
-              <MapView address={query} />
+            
+            {/* Main Content Area */}
+            <div className="flex-1 px-6">
+              {isLoading && (
+                <div className="fixed inset-0 top-16 flex flex-col justify-center items-center">
+                  <Loader />
+                  <div className="mt-8 text-gray-600 text-lg font-medium">
+                    {loadingTasks[currentTask]} ({Math.round(((currentTask + 1) / loadingTasks.length) * 100)}%)
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
