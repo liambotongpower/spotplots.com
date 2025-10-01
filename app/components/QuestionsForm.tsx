@@ -10,13 +10,14 @@ import { FiChevronDown, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 type Props = {
   onSearch: (filters: Filters) => void;
   initialFilters?: Partial<Filters>;
+  onCollapsedChange?: (collapsed: boolean) => void;
 };
 
 export type QuestionsFormRef = {
   submit: () => void;
 };
 
-const QuestionsForm = forwardRef<QuestionsFormRef, Props>(({ onSearch, initialFilters }, ref) => {
+const QuestionsForm = forwardRef<QuestionsFormRef, Props>(({ onSearch, initialFilters, onCollapsedChange }, ref) => {
   const [filters, setFilters] = useState<Filters>({ ...defaultFilters });
   const [errors, setErrors] = useState<string[]>([]);
   const [collapsed, setCollapsed] = useState(false);
@@ -62,6 +63,11 @@ const QuestionsForm = forwardRef<QuestionsFormRef, Props>(({ onSearch, initialFi
     saveFilters(filters);
   }, [filters]);
 
+  useEffect(() => {
+    if (onCollapsedChange) {
+      onCollapsedChange(collapsed);
+    }
+  }, [collapsed, onCollapsedChange]);
 
   const submit = () => {
     const errs = validateFilters(filters);

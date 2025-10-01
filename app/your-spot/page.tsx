@@ -36,6 +36,7 @@ export default function YourSpotPage() {
   const [listings, setListings] = useState<any[]>([]);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const questionsFormRef = useRef<QuestionsFormRef>(null);
 
@@ -239,12 +240,24 @@ export default function YourSpotPage() {
         </div>
 
         {/* Main Content */}
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="md:col-span-1">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-12 relative">
+          {/* Fixed Search Button */}
+          <div className="absolute top-8 right-4 sm:right-6 lg:right-8 z-10">
+            <button
+              type="button"
+              onClick={() => questionsFormRef.current?.submit()}
+              className="px-6 py-2 rounded-md bg-green-600 text-white text-sm hover:bg-green-700 transition-colors shadow-sm"
+            >
+              Search
+            </button>
+          </div>
+
+          <div className={`grid grid-cols-1 gap-8 ${isFiltersCollapsed ? 'md:grid-cols-[auto_1fr]' : 'md:grid-cols-3'}`}>
+            <div className={isFiltersCollapsed ? '' : 'md:col-span-1'}>
               <QuestionsForm
                 ref={questionsFormRef}
                 initialFilters={filters}
+                onCollapsedChange={setIsFiltersCollapsed}
                 onSearch={async (f) => {
                   setFilters(f);
                   setIsLoading(true);
@@ -266,16 +279,9 @@ export default function YourSpotPage() {
                 }}
               />
             </div>
-            <div className="md:col-span-2">
-              <div className="flex items-center justify-between mb-4">
+            <div className={isFiltersCollapsed ? '' : 'md:col-span-2'}>
+              <div className="flex items-center mb-4">
                 <div className="text-gray-700 font-medium">Results</div>
-                <button
-                  type="button"
-                  onClick={() => questionsFormRef.current?.submit()}
-                  className="px-6 py-2 rounded-md bg-green-600 text-white text-sm hover:bg-green-700 transition-colors"
-                >
-                  Search
-                </button>
               </div>
               {isLoading ? (
                 <div className="text-gray-500 text-sm">Loading…</div>
