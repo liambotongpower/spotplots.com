@@ -105,6 +105,12 @@ def daft_to_dict(listing: Any) -> Dict[str, Any]:
 app = FastAPI()
 
 
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "ok", "service": "daft-listings"}
+
+
 def _run_search(filters: SearchFilters):
     """Run the actual search in a separate function for timeout handling"""
     logger.info(f"Received search request: {filters.dict()}")

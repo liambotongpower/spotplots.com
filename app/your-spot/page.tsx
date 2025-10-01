@@ -57,28 +57,10 @@ export default function YourSpotPage() {
     );
     setSelectedCounties(pickedProper);
 
-    // Update filters and trigger search when we have a query
+    // Update filters with selected counties (but don't auto-search)
     if (query && pickedProper.length > 0) {
       const nextFilters: Filters = { ...defaultFilters, counties: pickedProper, page: 1 };
       setFilters(nextFilters);
-      (async () => {
-        setIsLoading(true);
-        try {
-          const resp = await fetch('/api/listings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(nextFilters),
-          });
-          const data = await resp.json();
-          setListings(Array.isArray(data.listings) ? data.listings : []);
-          setHasNextPage(!!data.hasNextPage);
-        } catch (e) {
-          setListings([]);
-          setHasNextPage(false);
-        } finally {
-          setIsLoading(false);
-        }
-      })();
     }
   }, [query]);
 
