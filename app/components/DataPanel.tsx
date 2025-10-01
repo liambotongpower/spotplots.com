@@ -9,6 +9,49 @@ interface DataPanelProps {
   className?: string;
 }
 
+// Utility function to convert data to CSV format
+function convertToCSV(data: any[]): string {
+  if (!data || data.length === 0) {
+    return '';
+  }
+
+  // Get headers from the first item
+  const headers = Object.keys(data[0]);
+  
+  // Create CSV header row
+  const csvHeaders = headers.join(',');
+  
+  // Create CSV data rows
+  const csvRows = data.map(item => {
+    return headers.map(header => {
+      const value = item[header];
+      // Escape commas and quotes in values
+      if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
+        return `"${value.replace(/"/g, '""')}"`;
+      }
+      return value;
+    }).join(',');
+  });
+  
+  return [csvHeaders, ...csvRows].join('\n');
+}
+
+// Utility function to download CSV file
+function downloadCSV(csvContent: string, filename: string) {
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}
+
 export default function DataPanel({ 
   title, 
   subtitle, 
@@ -20,12 +63,33 @@ export default function DataPanel({
   const displayData = data.slice(0, maxDisplay);
   const remainingCount = totalCount ? totalCount - maxDisplay : 0;
 
+  const handleDownloadCSV = () => {
+    const csvContent = convertToCSV(data);
+    const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    const filename = `${title.toLowerCase().replace(/\s+/g, '-')}-${timestamp}.csv`;
+    downloadCSV(csvContent, filename);
+  };
+
   return (
     <div className={`bg-white rounded-lg shadow-lg border border-gray-200 p-4 ${className}`}>
       <div className="mb-4">
-        <h2 className="text-xl font-bold text-gray-900 mb-1">
-          {title}
-        </h2>
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-xl font-bold text-gray-900">
+            {title}
+          </h2>
+          {data && data.length > 0 && (
+            <button
+              onClick={handleDownloadCSV}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              title="Download data as CSV"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Download CSV
+            </button>
+          )}
+        </div>
         {subtitle && (
           <p className="text-sm text-gray-600">
             {subtitle}

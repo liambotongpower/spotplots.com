@@ -1,6 +1,6 @@
 'use client';
 
-import { FaPlus, FaMicrophone, FaHome, FaSearch } from 'react-icons/fa';
+import { FaPlus, FaMicrophone, FaHome, FaSearch, FaBus } from 'react-icons/fa';
 import { } from 'react-icons/fi';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -132,9 +132,11 @@ export default function AnySpotPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentTask, setCurrentTask] = useState(0);
   const [searchResults, setSearchResults] = useState<any>(null);
+  const [departuresResults, setDeparturesResults] = useState<any>(null);
   
   const loadingTasks = useMemo(() => [
-    'Getting nearby stops'
+    'Getting nearby stops',
+    'Getting transport departures'
   ], []);
   
   const phrases = useMemo(() => [
@@ -302,7 +304,7 @@ export default function AnySpotPage() {
             // Then, find nearby stops using manual method
             try {
               const stopsResponse = await fetch(
-                `/api/get_nearby_stops?lat=${geocodeData.coordinates.lat}&lng=${geocodeData.coordinates.lng}&maxDistance=2000&limit=1000&useManual=true`
+                `/api/get_nearby_stops?lat=${geocodeData.coordinates.lat}&lng=${geocodeData.coordinates.lng}&maxDistance=1000&limit=1000&useManual=true`
               );
               const stopsData = await stopsResponse.json();
               
@@ -324,7 +326,7 @@ export default function AnySpotPage() {
                 
                 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
                 
-                // Store results and hide loader
+                // Store results
                 setSearchResults({
                   address: query,
                   formattedAddress: geocodeData.formatted_address,
@@ -332,6 +334,59 @@ export default function AnySpotPage() {
                   stops: stopsData.results.stops,
                   totalCount: stopsData.results.count
                 });
+                
+                // Move to next task - getting departures
+                setCurrentTask(1);
+                
+                // Now get transport departures
+                try {
+                  const departuresResponse = await fetch(
+                    `/api/get_nearby_stop_times?lat=${geocodeData.coordinates.lat}&lng=${geocodeData.coordinates.lng}&maxDistance=1000&limit=1000&useManual=true`
+                  );
+                  const departuresData = await departuresResponse.json();
+                  
+                  if (departuresResponse.ok && departuresData.success) {
+                    console.log('🚌 TRANSPORT DEPARTURES FOUND:', departuresData.results.totalDepartures);
+                    console.log(`Total stops with departures: ${departuresData.results.totalStops}`);
+                    
+                    // More detailed logging about what we got back
+                    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                    console.log('🔍 DEPARTURES DATA DEBUGGING');
+                    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                    console.log(`Response status: ${departuresResponse.status}`);
+                    console.log(`Success flag: ${departuresData.success}`);
+                    console.log(`Total stops: ${departuresData.results.totalStops}`);
+                    console.log(`Total departures: ${departuresData.results.totalDepartures}`);
+                    console.log(`Stops array length: ${departuresData.results.stops.length}`);
+                    
+                    // Log the first 5 stops with their departure counts
+                    const firstFiveStops = departuresData.results.stops.slice(0, 5);
+                    if (firstFiveStops.length > 0) {
+                      console.log('First 5 stops with departure counts:');
+                      firstFiveStops.forEach((stop, i) => {
+                        console.log(`  ${i+1}. ${stop.stop_name} (${stop.stop_id}): ${stop.departures_count} departures`);
+                      });
+                    } else {
+                      console.log('No stops returned in the results');
+                    }
+                    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                    
+                    // Store departures results
+                    setDeparturesResults({
+                      stops: departuresData.results.stops,
+                      totalStops: departuresData.results.totalStops,
+                      totalDepartures: departuresData.results.totalDepartures
+                    });
+                  } else {
+                    console.error('Failed to find transport departures:', departuresData.error);
+                    console.error('Response status:', departuresResponse.status);
+                    console.error('Response data:', departuresData);
+                  }
+                } catch (departuresError) {
+                  console.error('Error finding transport departures:', departuresError);
+                }
+                
+                // Hide loader when all tasks are complete
                 setIsLoading(false);
               } else {
                 console.error('Failed to find nearby stops:', stopsData.error);
@@ -429,14 +484,75 @@ export default function AnySpotPage() {
           
           {/* Results Panel */}
           {!isLoading && searchResults && (
-            <DataPanel
-              title="Nearby Transport Stops"
-              subtitle={`Found ${searchResults.totalCount} stops within 2000m of ${searchResults.formattedAddress}`}
-              data={searchResults.stops}
-              totalCount={searchResults.totalCount}
-              maxDisplay={5}
-              className="w-full"
-            />
+            <div className="space-y-8">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">Transport</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <DataPanel
+                    title="Nearby Transport Stops"
+                    subtitle={`Found ${searchResults.totalCount} stops within 1000m of ${searchResults.formattedAddress}`}
+                    data={searchResults.stops}
+                    totalCount={searchResults.totalCount}
+                    maxDisplay={5}
+                    className="w-full"
+                  />
+                  
+                  {departuresResults && (
+                    <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4">
+                      <div className="mb-4">
+                        <h2 className="text-xl font-bold text-gray-900 mb-1">
+                          Transport Departures
+                        </h2>
+                        <p className="text-sm text-gray-600">
+                          Found {departuresResults.totalDepartures} departures from {departuresResults.totalStops} stops within 1000m
+                        </p>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        {departuresResults.stops.slice(0, 5).map((stop: any, index: number) => (
+                          <div key={stop.stop_id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md border border-gray-100 hover:bg-gray-100 transition-colors">
+                            <div className="flex items-center">
+                              <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                                <span className="text-blue-600 font-semibold text-xs">{index + 1}</span>
+                              </div>
+                              <h3 className="text-base font-medium text-gray-900">{stop.stop_name}</h3>
+                            </div>
+                            <div className="text-right">
+                              <div className="flex items-center">
+                                <FaBus className="text-blue-600 mr-2" />
+                                <span className="text-lg font-bold text-blue-600">
+                                  {stop.departures_count}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        
+                        {departuresResults.stops.length > 5 && (
+                          <div className="text-center py-2">
+                            <p className="text-sm text-gray-600">
+                              ... and <span className="font-semibold text-blue-600">{departuresResults.stops.length - 5}</span> more stops
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="mt-4 p-3 bg-blue-50 rounded-md border border-blue-100">
+                        <p className="text-blue-800 font-medium">
+                          Total transport departures within 1000m: <span className="font-bold">{departuresResults.totalDepartures}</span>
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <h2 className="text-2xl font-bold text-gray-900">Amenities</h2>
+              <h2 className="text-2xl font-bold text-gray-900">Safety</h2>
+              <h2 className="text-2xl font-bold text-gray-900">Education</h2>
+              <h2 className="text-2xl font-bold text-gray-900">Current Value and Future Value</h2>
+              <h2 className="text-2xl font-bold text-gray-900">Connectivity</h2>
+            </div>
           )}
         </div>
       </div>
