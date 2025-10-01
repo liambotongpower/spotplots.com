@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { defaultFilters, Filters } from '../lib/schema';
 import { loadFilters, saveFilters } from '../lib/persistence';
 import { validateFilters } from '../lib/validation';
-import { searchTypes, propertyTypes, facilitiesAll, sortTypes } from '../lib/enumMaps';
+import { searchTypes, propertyTypes, facilitiesAll, sortTypes, sortLabels, searchTypeLabels, propertyTypeLabels, facilityLabels } from '../lib/enumMaps';
 
 type Props = {
   onSearch: (filters: Filters) => void;
@@ -62,50 +62,83 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
 
       {/* Sort */}
       <div>
-        <label className="block text-sm font-medium text-black">Sort</label>
-        <select
-          className="mt-2 border rounded-md px-3 py-2 text-sm text-black bg-white"
-          value={filters.sort_type || ''}
-          title="Sort order"
-          onChange={(e) => setFilters((p) => ({ ...p, sort_type: e.target.value || null }))}
-        >
-          <option value="">Select...</option>
+        <label className="block text-sm font-medium text-black mb-2">Sort</label>
+        <div className="mt-2 grid grid-cols-1 gap-2">
+          <label className="inline-flex items-center text-sm text-black">
+            <input
+              type="radio"
+              className="mr-2"
+              checked={!filters.sort_type}
+              onChange={() => setFilters((p) => ({ ...p, sort_type: null }))}
+            />
+            Select...
+          </label>
           {sortTypes.map((t) => (
-            <option key={t} value={t}>{t}</option>
+            <label key={t} className="inline-flex items-center text-sm text-black">
+              <input
+                type="radio"
+                className="mr-2"
+                checked={filters.sort_type === t}
+                onChange={() => setFilters((p) => ({ ...p, sort_type: t }))}
+              />
+              {sortLabels[t] || t}
+            </label>
           ))}
-        </select>
+        </div>
       </div>
 
       {/* Search Type */}
       <div>
-        <label className="block text-sm font-medium text-black">Search Type</label>
-        <select
-          className="mt-2 border rounded-md px-3 py-2 text-sm text-black bg-white"
-          value={filters.search_type || ''}
-          title="Search Type"
-          onChange={(e) => setFilters((p) => ({ ...p, search_type: e.target.value || null }))}
-        >
-          <option value="">Select...</option>
+        <label className="block text-sm font-medium text-black mb-2">Search Type</label>
+        <div className="mt-2 grid grid-cols-1 gap-2">
+          <label className="inline-flex items-center text-sm text-black">
+            <input
+              type="radio"
+              className="mr-2"
+              checked={!filters.search_type}
+              onChange={() => setFilters((p) => ({ ...p, search_type: null }))}
+            />
+            Select...
+          </label>
           {searchTypes.map((t) => (
-            <option key={t} value={t}>{t}</option>
+            <label key={t} className="inline-flex items-center text-sm text-black">
+              <input
+                type="radio"
+                className="mr-2"
+                checked={filters.search_type === t}
+                onChange={() => setFilters((p) => ({ ...p, search_type: t }))}
+              />
+              {searchTypeLabels[t] || t}
+            </label>
           ))}
-        </select>
+        </div>
       </div>
 
       {/* Property Type */}
       <div>
-        <label className="block text-sm font-medium text-black">Property Type</label>
-        <select
-          className="mt-2 border rounded-md px-3 py-2 text-sm text-black bg-white"
-          value={filters.property_type || ''}
-          title="Property Type"
-          onChange={(e) => setFilters((p) => ({ ...p, property_type: e.target.value || null }))}
-        >
-          <option value="">Select...</option>
+        <label className="block text-sm font-medium text-black mb-2">Property Type</label>
+        <div className="mt-2 grid grid-cols-1 gap-2">
+          <label className="inline-flex items-center text-sm text-black">
+            <input
+              type="radio"
+              className="mr-2"
+              checked={!filters.property_type}
+              onChange={() => setFilters((p) => ({ ...p, property_type: null }))}
+            />
+            Select...
+          </label>
           {propertyTypes.map((t) => (
-            <option key={t} value={t}>{t}</option>
+            <label key={t} className="inline-flex items-center text-sm text-black">
+              <input
+                type="radio"
+                className="mr-2"
+                checked={filters.property_type === t}
+                onChange={() => setFilters((p) => ({ ...p, property_type: t }))}
+              />
+              {propertyTypeLabels[t] || t}
+            </label>
           ))}
-        </select>
+        </div>
       </div>
 
       {/* Bedrooms */}
@@ -118,18 +151,32 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
               <input
                 type="text"
                 inputMode="numeric"
-                value={filters.min_beds ?? 1}
+                value={filters.min_beds === null ? '' : filters.min_beds}
                 onChange={(e) => {
+                  const value = e.target.value.replace(/[^0-9]/g, '');
+                  if (value === '') {
+                    setFilters((p) => ({ ...p, min_beds: null }));
+                  } else {
+                    const numValue = Number(value);
+                    if (numValue <= 10) {
+                      setFilters((p) => ({ ...p, min_beds: numValue }));
+                    }
+                  }
+                }}
+                onBlur={(e) => {
                   const value = e.target.value.replace(/[^0-9]/g, '');
                   const numValue = Number(value);
                   const maxValue = filters.max_beds ?? 10;
-                  if (value === '' || (numValue >= 1 && numValue <= 10 && numValue < maxValue)) {
-                    setFilters((p) => ({ ...p, min_beds: value === '' ? 1 : numValue }));
+                  if (value === '' || numValue < 1) {
+                    setFilters((p) => ({ ...p, min_beds: 1 }));
+                  } else if (numValue >= maxValue) {
+                    setFilters((p) => ({ ...p, min_beds: maxValue - 1 }));
                   }
                 }}
                 className="w-12 px-1 py-0.5 text-xs border rounded text-center"
                 aria-label="Minimum bedrooms"
                 title="Minimum bedrooms"
+                placeholder="1"
               />
             </div>
             <div className="flex items-center gap-1">
@@ -137,18 +184,32 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
               <input
                 type="text"
                 inputMode="numeric"
-                value={filters.max_beds ?? 10}
+                value={filters.max_beds === null ? '' : filters.max_beds}
                 onChange={(e) => {
+                  const value = e.target.value.replace(/[^0-9]/g, '');
+                  if (value === '') {
+                    setFilters((p) => ({ ...p, max_beds: null }));
+                  } else {
+                    const numValue = Number(value);
+                    if (numValue <= 10) {
+                      setFilters((p) => ({ ...p, max_beds: numValue }));
+                    }
+                  }
+                }}
+                onBlur={(e) => {
                   const value = e.target.value.replace(/[^0-9]/g, '');
                   const numValue = Number(value);
                   const minValue = filters.min_beds ?? 1;
-                  if (value === '' || (numValue >= 0 && numValue <= 10 && numValue > minValue)) {
-                    setFilters((p) => ({ ...p, max_beds: value === '' ? 10 : numValue }));
+                  if (value === '' || numValue < 1) {
+                    setFilters((p) => ({ ...p, max_beds: 10 }));
+                  } else if (numValue <= minValue) {
+                    setFilters((p) => ({ ...p, max_beds: minValue + 1 }));
                   }
                 }}
                 className="w-12 px-1 py-0.5 text-xs border rounded text-center"
                 aria-label="Maximum bedrooms"
                 title="Maximum bedrooms"
+                placeholder="10"
               />
             </div>
           </div>
@@ -199,18 +260,32 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
               <input
                 type="text"
                 inputMode="numeric"
-                value={filters.min_baths ?? 1}
+                value={filters.min_baths === null ? '' : filters.min_baths}
                 onChange={(e) => {
+                  const value = e.target.value.replace(/[^0-9]/g, '');
+                  if (value === '') {
+                    setFilters((p) => ({ ...p, min_baths: null }));
+                  } else {
+                    const numValue = Number(value);
+                    if (numValue <= 10) {
+                      setFilters((p) => ({ ...p, min_baths: numValue }));
+                    }
+                  }
+                }}
+                onBlur={(e) => {
                   const value = e.target.value.replace(/[^0-9]/g, '');
                   const numValue = Number(value);
                   const maxValue = filters.max_baths ?? 10;
-                  if (value === '' || (numValue >= 1 && numValue <= 10 && numValue < maxValue)) {
-                    setFilters((p) => ({ ...p, min_baths: value === '' ? 1 : numValue }));
+                  if (value === '' || numValue < 1) {
+                    setFilters((p) => ({ ...p, min_baths: 1 }));
+                  } else if (numValue >= maxValue) {
+                    setFilters((p) => ({ ...p, min_baths: maxValue - 1 }));
                   }
                 }}
                 className="w-12 px-1 py-0.5 text-xs border rounded text-center"
                 aria-label="Minimum bathrooms"
                 title="Minimum bathrooms"
+                placeholder="1"
               />
             </div>
             <div className="flex items-center gap-1">
@@ -218,18 +293,32 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
               <input
                 type="text"
                 inputMode="numeric"
-                value={filters.max_baths ?? 10}
+                value={filters.max_baths === null ? '' : filters.max_baths}
                 onChange={(e) => {
+                  const value = e.target.value.replace(/[^0-9]/g, '');
+                  if (value === '') {
+                    setFilters((p) => ({ ...p, max_baths: null }));
+                  } else {
+                    const numValue = Number(value);
+                    if (numValue <= 10) {
+                      setFilters((p) => ({ ...p, max_baths: numValue }));
+                    }
+                  }
+                }}
+                onBlur={(e) => {
                   const value = e.target.value.replace(/[^0-9]/g, '');
                   const numValue = Number(value);
                   const minValue = filters.min_baths ?? 1;
-                  if (value === '' || (numValue >= 0 && numValue <= 10 && numValue > minValue)) {
-                    setFilters((p) => ({ ...p, max_baths: value === '' ? 10 : numValue }));
+                  if (value === '' || numValue < 1) {
+                    setFilters((p) => ({ ...p, max_baths: 10 }));
+                  } else if (numValue <= minValue) {
+                    setFilters((p) => ({ ...p, max_baths: minValue + 1 }));
                   }
                 }}
                 className="w-12 px-1 py-0.5 text-xs border rounded text-center"
                 aria-label="Maximum bathrooms"
                 title="Maximum bathrooms"
+                placeholder="10"
               />
             </div>
           </div>
@@ -287,7 +376,7 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
                     setFilters((p) => ({ ...p, min_price: null }));
                   } else {
                     const numValue = Number(value);
-                    if (numValue <= 10000000) {
+                    if (numValue <= 5000000) {
                       setFilters((p) => ({ ...p, min_price: numValue }));
                     }
                   }
@@ -295,7 +384,7 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
                 onBlur={(e) => {
                   const value = e.target.value.replace(/[^0-9]/g, '');
                   const numValue = Number(value);
-                  const maxValue = filters.max_price ?? 10000000;
+                  const maxValue = filters.max_price ?? 5000000;
                   if (value === '' || numValue < 1000) {
                     setFilters((p) => ({ ...p, min_price: 1000 }));
                   } else if (numValue >= maxValue) {
@@ -313,24 +402,26 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
               <input
                 type="text"
                 inputMode="numeric"
-                value={filters.max_price === null ? '' : filters.max_price}
+                value={filters.max_price === null ? '' : filters.max_price === 5000000 ? '5000000+' : filters.max_price}
                 onChange={(e) => {
-                  const value = e.target.value.replace(/[^0-9]/g, '');
+                  const value = e.target.value.replace(/[^0-9+]/g, '');
                   if (value === '') {
                     setFilters((p) => ({ ...p, max_price: null }));
+                  } else if (value === '5000000+') {
+                    setFilters((p) => ({ ...p, max_price: 5000000 }));
                   } else {
                     const numValue = Number(value);
-                    if (numValue <= 10000000) {
+                    if (numValue <= 5000000) {
                       setFilters((p) => ({ ...p, max_price: numValue }));
                     }
                   }
                 }}
                 onBlur={(e) => {
-                  const value = e.target.value.replace(/[^0-9]/g, '');
-                  const numValue = Number(value);
+                  const value = e.target.value.replace(/[^0-9+]/g, '');
+                  const numValue = value === '5000000+' ? 5000000 : Number(value);
                   const minValue = filters.min_price ?? 1000;
                   if (value === '' || numValue < 1000) {
-                    setFilters((p) => ({ ...p, max_price: 10000000 }));
+                    setFilters((p) => ({ ...p, max_price: 5000000 }));
                   } else if (numValue <= minValue) {
                     setFilters((p) => ({ ...p, max_price: minValue + 1000 }));
                   }
@@ -338,7 +429,7 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
                 className="w-20 px-1 py-0.5 text-xs border rounded text-center"
                 aria-label="Maximum price"
                 title="Maximum price"
-                placeholder="10000000"
+                placeholder="5000000+"
               />
             </div>
           </div>
@@ -346,13 +437,13 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
             <input
               type="range"
               min={1000}
-              max={10000000}
+              max={5000000}
               step={1000}
               className="absolute w-full h-2 bg-transparent appearance-none cursor-pointer slider"
               value={filters.min_price ?? 1000}
               onChange={(e) => {
                 const value = Number(e.target.value);
-                const maxValue = filters.max_price ?? 10000000;
+                const maxValue = filters.max_price ?? 5000000;
                 if (value < maxValue) {
                   setFilters((p) => ({ ...p, min_price: value }));
                 }
@@ -362,10 +453,10 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
             <input
               type="range"
               min={1000}
-              max={10000000}
+              max={5000000}
               step={1000}
               className="absolute w-full h-2 bg-transparent appearance-none cursor-pointer slider"
-              value={filters.max_price ?? 10000000}
+              value={filters.max_price ?? 5000000}
               onChange={(e) => {
                 const value = Number(e.target.value);
                 const minValue = filters.min_price ?? 1000;
@@ -382,7 +473,7 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
       {/* Facilities */}
       <div>
         <label className="block text-sm font-medium text-black">Facilities</label>
-        <div className="mt-2 grid grid-cols-2 gap-2">
+        <div className="mt-2 grid grid-cols-1 gap-2">
           {facilitiesAll.map((f) => {
             const checked = filters.facilities.includes(f);
             return (
@@ -398,7 +489,7 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
                     }))
                   }
                 />
-                {f}
+                {facilityLabels[f] || f}
               </label>
             );
           })}
