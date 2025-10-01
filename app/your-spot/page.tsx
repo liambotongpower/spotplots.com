@@ -5,7 +5,7 @@ import { } from 'react-icons/fi';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import CountyDropdown, { ALL_COUNTIES } from '../components/CountyDropdown';
-import QuestionsForm from '../components/QuestionsForm';
+import QuestionsForm, { QuestionsFormRef } from '../components/QuestionsForm';
 import ListingsResults from '../components/ListingsResults';
 import PaginationControls from '../components/PaginationControls';
 import { Filters, defaultFilters } from '../lib/schema';
@@ -37,6 +37,7 @@ export default function YourSpotPage() {
   const [hasNextPage, setHasNextPage] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const questionsFormRef = useRef<QuestionsFormRef>(null);
 
   // Keep input and selected counties in sync with URL (?q=...)
   useEffect(() => {
@@ -238,10 +239,11 @@ export default function YourSpotPage() {
         </div>
 
         {/* Main Content */}
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-12">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-1">
               <QuestionsForm
+                ref={questionsFormRef}
                 initialFilters={filters}
                 onSearch={async (f) => {
                   setFilters(f);
@@ -267,55 +269,70 @@ export default function YourSpotPage() {
             <div className="md:col-span-2">
               <div className="flex items-center justify-between mb-4">
                 <div className="text-gray-700 font-medium">Results</div>
-                <PaginationControls
-                  page={filters.page}
-                  hasPrev={filters.page > 1}
-                  hasNext={hasNextPage}
-                  onPrev={async () => {
-                    if (filters.page <= 1) return;
-                    const next = { ...filters, page: filters.page - 1 };
-                    setFilters(next);
-                    setIsLoading(true);
-                    try {
-                      const resp = await fetch('/api/listings', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(next),
-                      });
-                      const data = await resp.json();
-                      setListings(Array.isArray(data.listings) ? data.listings : []);
-                      setHasNextPage(!!data.hasNextPage);
-                    } catch (e) {
-                      // ignore
-                    } finally {
-                      setIsLoading(false);
-                    }
-                  }}
-                  onNext={async () => {
-                    const next = { ...filters, page: filters.page + 1 };
-                    setFilters(next);
-                    setIsLoading(true);
-                    try {
-                      const resp = await fetch('/api/listings', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(next),
-                      });
-                      const data = await resp.json();
-                      setListings(Array.isArray(data.listings) ? data.listings : []);
-                      setHasNextPage(!!data.hasNextPage);
-                    } catch (e) {
-                      // ignore
-                    } finally {
-                      setIsLoading(false);
-                    }
-                  }}
-                />
+                <button
+                  type="button"
+                  onClick={() => questionsFormRef.current?.submit()}
+                  className="px-6 py-2 rounded-md bg-green-600 text-white text-sm hover:bg-green-700 transition-colors"
+                >
+                  Search
+                </button>
               </div>
               {isLoading ? (
                 <div className="text-gray-500 text-sm">Loading…</div>
               ) : (
-                <ListingsResults listings={listings} />
+                <>
+                  <ListingsResults listings={listings} />
+                  
+                  {/* Pagination controls moved to bottom */}
+                  {listings.length > 0 && (
+                    <div className="mt-6 mb-16 flex justify-center">
+                      <PaginationControls
+                        page={filters.page}
+                        hasPrev={filters.page > 1}
+                        hasNext={hasNextPage}
+                        onPrev={async () => {
+                          if (filters.page <= 1) return;
+                          const next = { ...filters, page: filters.page - 1 };
+                          setFilters(next);
+                          setIsLoading(true);
+                          try {
+                            const resp = await fetch('/api/listings', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify(next),
+                            });
+                            const data = await resp.json();
+                            setListings(Array.isArray(data.listings) ? data.listings : []);
+                            setHasNextPage(!!data.hasNextPage);
+                          } catch (e) {
+                            // ignore
+                          } finally {
+                            setIsLoading(false);
+                          }
+                        }}
+                        onNext={async () => {
+                          const next = { ...filters, page: filters.page + 1 };
+                          setFilters(next);
+                          setIsLoading(true);
+                          try {
+                            const resp = await fetch('/api/listings', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify(next),
+                            });
+                            const data = await resp.json();
+                            setListings(Array.isArray(data.listings) ? data.listings : []);
+                            setHasNextPage(!!data.hasNextPage);
+                          } catch (e) {
+                            // ignore
+                          } finally {
+                            setIsLoading(false);
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>

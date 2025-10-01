@@ -1,23 +1,48 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useImperativeHandle, forwardRef } from 'react';
 import { defaultFilters, Filters } from '../lib/schema';
 import { loadFilters, saveFilters } from '../lib/persistence';
 import { validateFilters } from '../lib/validation';
 import { searchTypes, propertyTypes, facilitiesAll, sortTypes, sortLabels, searchTypeLabels, propertyTypeLabels, facilityLabels } from '../lib/enumMaps';
+import { FiChevronDown, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 
 type Props = {
   onSearch: (filters: Filters) => void;
   initialFilters?: Partial<Filters>;
 };
 
-export default function QuestionsForm({ onSearch, initialFilters }: Props) {
+export type QuestionsFormRef = {
+  submit: () => void;
+};
+
+const QuestionsForm = forwardRef<QuestionsFormRef, Props>(({ onSearch, initialFilters }, ref) => {
   const [filters, setFilters] = useState<Filters>({ ...defaultFilters });
   const [errors, setErrors] = useState<string[]>([]);
+  const [collapsed, setCollapsed] = useState(false);
+  const [open, setOpen] = useState({
+    sort: true,
+    searchType: true,
+    propertyType: true,
+    bedrooms: true,
+    bathrooms: true,
+    price: true,
+    facilities: true,
+  });
 
   useEffect(() => {
     const saved = loadFilters();
-    if (saved) setFilters((prev) => ({ ...prev, ...saved }));
+    if (saved) {
+      setFilters((prev) => ({ ...prev, ...saved }));
+    } else {
+      // Set default selections if no saved filters
+      setFilters((prev) => ({ 
+        ...prev, 
+        sort_type: "PUBLISH_DATE_DESC", // Newest First
+        search_type: "COMMERCIAL_SALE", // Commercial Sale
+        property_type: "HOUSE" // House
+      }));
+    }
   }, []);
 
   // Merge in initial filters coming from parent (e.g. parsed from URL)
@@ -46,105 +71,121 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
     }
   };
 
+  useImperativeHandle(ref, () => ({
+    submit,
+  }));
+
   return (
     <div className="space-y-6 text-black">
       
-      {/* Submit - Moved to top */}
+      {/* Collapse Toggle */}
       <div>
         <button
           type="button"
-          onClick={submit}
-          className="px-4 py-2 rounded-md bg-green-600 text-white text-sm w-full"
+          onClick={() => setCollapsed((v) => !v)}
+          className="w-9 h-9 flex items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+          title={collapsed ? 'Show filters' : 'Hide filters'}
+          aria-label={collapsed ? 'Show filters' : 'Hide filters'}
         >
-          Search
+          {collapsed ? <FiChevronRight /> : <FiChevronLeft />}
         </button>
       </div>
 
+      {!collapsed && (
+        <>
       {/* Sort */}
       <div>
-        <label className="block text-sm font-medium text-black mb-2">Sort</label>
-        <div className="mt-2 grid grid-cols-1 gap-2">
-          <label className="inline-flex items-center text-sm text-black">
-            <input
-              type="radio"
-              className="mr-2"
-              checked={!filters.sort_type}
-              onChange={() => setFilters((p) => ({ ...p, sort_type: null }))}
-            />
-            Select...
-          </label>
-          {sortTypes.map((t) => (
-            <label key={t} className="inline-flex items-center text-sm text-black">
-              <input
-                type="radio"
-                className="mr-2"
-                checked={filters.sort_type === t}
-                onChange={() => setFilters((p) => ({ ...p, sort_type: t }))}
-              />
-              {sortLabels[t] || t}
-            </label>
-          ))}
-        </div>
+        <button
+          type="button"
+          onClick={() => setOpen((p) => ({ ...p, sort: !p.sort }))}
+          className="w-full flex items-center justify-between"
+        >
+          <span className="block text-sm font-medium text-black">Sort</span>
+          <FiChevronDown className={`text-gray-600 transition-transform ${open.sort ? 'rotate-180' : ''}`} />
+        </button>
+        {open.sort && (
+          <div className="mt-2 grid grid-cols-1 gap-2">
+            {sortTypes.map((t) => (
+              <label key={t} className="inline-flex items-center text-sm text-black">
+                <input
+                  type="radio"
+                  className="mr-2"
+                  checked={filters.sort_type === t}
+                  onChange={() => setFilters((p) => ({ ...p, sort_type: t }))}
+                />
+                {sortLabels[t] || t}
+              </label>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Search Type */}
       <div>
-        <label className="block text-sm font-medium text-black mb-2">Search Type</label>
-        <div className="mt-2 grid grid-cols-1 gap-2">
-          <label className="inline-flex items-center text-sm text-black">
-            <input
-              type="radio"
-              className="mr-2"
-              checked={!filters.search_type}
-              onChange={() => setFilters((p) => ({ ...p, search_type: null }))}
-            />
-            Select...
-          </label>
-          {searchTypes.map((t) => (
-            <label key={t} className="inline-flex items-center text-sm text-black">
-              <input
-                type="radio"
-                className="mr-2"
-                checked={filters.search_type === t}
-                onChange={() => setFilters((p) => ({ ...p, search_type: t }))}
-              />
-              {searchTypeLabels[t] || t}
-            </label>
-          ))}
-        </div>
+        <button
+          type="button"
+          onClick={() => setOpen((p) => ({ ...p, searchType: !p.searchType }))}
+          className="w-full flex items-center justify-between"
+        >
+          <span className="block text-sm font-medium text-black">Search Type</span>
+          <FiChevronDown className={`text-gray-600 transition-transform ${open.searchType ? 'rotate-180' : ''}`} />
+        </button>
+        {open.searchType && (
+          <div className="mt-2 grid grid-cols-1 gap-2">
+            {searchTypes.map((t) => (
+              <label key={t} className="inline-flex items-center text-sm text-black">
+                <input
+                  type="radio"
+                  className="mr-2"
+                  checked={filters.search_type === t}
+                  onChange={() => setFilters((p) => ({ ...p, search_type: t }))}
+                />
+                {searchTypeLabels[t] || t}
+              </label>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Property Type */}
       <div>
-        <label className="block text-sm font-medium text-black mb-2">Property Type</label>
-        <div className="mt-2 grid grid-cols-1 gap-2">
-          <label className="inline-flex items-center text-sm text-black">
-            <input
-              type="radio"
-              className="mr-2"
-              checked={!filters.property_type}
-              onChange={() => setFilters((p) => ({ ...p, property_type: null }))}
-            />
-            Select...
-          </label>
-          {propertyTypes.map((t) => (
-            <label key={t} className="inline-flex items-center text-sm text-black">
-              <input
-                type="radio"
-                className="mr-2"
-                checked={filters.property_type === t}
-                onChange={() => setFilters((p) => ({ ...p, property_type: t }))}
-              />
-              {propertyTypeLabels[t] || t}
-            </label>
-          ))}
-        </div>
+        <button
+          type="button"
+          onClick={() => setOpen((p) => ({ ...p, propertyType: !p.propertyType }))}
+          className="w-full flex items-center justify-between"
+        >
+          <span className="block text-sm font-medium text-black">Property Type</span>
+          <FiChevronDown className={`text-gray-600 transition-transform ${open.propertyType ? 'rotate-180' : ''}`} />
+        </button>
+        {open.propertyType && (
+          <div className="mt-2 grid grid-cols-1 gap-2">
+            {propertyTypes.map((t) => (
+              <label key={t} className="inline-flex items-center text-sm text-black">
+                <input
+                  type="radio"
+                  className="mr-2"
+                  checked={filters.property_type === t}
+                  onChange={() => setFilters((p) => ({ ...p, property_type: t }))}
+                />
+                {propertyTypeLabels[t] || t}
+              </label>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Bedrooms */}
       <div>
-        <label className="block text-sm font-medium text-black mb-2">Bedrooms</label>
-        <div className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen((p) => ({ ...p, bedrooms: !p.bedrooms }))}
+          className="w-full flex items-center justify-between"
+        >
+          <span className="block text-sm font-medium text-black">Bedrooms</span>
+          <FiChevronDown className={`text-gray-600 transition-transform ${open.bedrooms ? 'rotate-180' : ''}`} />
+        </button>
+        {open.bedrooms && (
+        <div className="relative mt-2">
           <div className="flex justify-between text-xs text-gray-600 mb-2">
             <div className="flex items-center gap-1">
               <span>Min:</span>
@@ -248,12 +289,21 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
             />
           </div>
         </div>
+        )}
       </div>
 
       {/* Bathrooms */}
       <div>
-        <label className="block text-sm font-medium text-black mb-2">Bathrooms</label>
-        <div className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen((p) => ({ ...p, bathrooms: !p.bathrooms }))}
+          className="w-full flex items-center justify-between"
+        >
+          <span className="block text-sm font-medium text-black">Bathrooms</span>
+          <FiChevronDown className={`text-gray-600 transition-transform ${open.bathrooms ? 'rotate-180' : ''}`} />
+        </button>
+        {open.bathrooms && (
+        <div className="relative mt-2">
           <div className="flex justify-between text-xs text-gray-600 mb-2">
             <div className="flex items-center gap-1">
               <span>Min:</span>
@@ -357,12 +407,21 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
             />
           </div>
         </div>
+        )}
       </div>
 
       {/* Price */}
       <div>
-        <label className="block text-sm font-medium text-black mb-2">Price (€)</label>
-        <div className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen((p) => ({ ...p, price: !p.price }))}
+          className="w-full flex items-center justify-between"
+        >
+          <span className="block text-sm font-medium text-black">Price (€)</span>
+          <FiChevronDown className={`text-gray-600 transition-transform ${open.price ? 'rotate-180' : ''}`} />
+        </button>
+        {open.price && (
+        <div className="relative mt-2">
           <div className="flex justify-between text-xs text-gray-600 mb-2">
             <div className="flex items-center gap-1">
               <span>Min:</span>
@@ -468,33 +527,45 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
             />
           </div>
         </div>
+        )}
       </div>
 
       {/* Facilities */}
       <div>
-        <label className="block text-sm font-medium text-black">Facilities</label>
-        <div className="mt-2 grid grid-cols-1 gap-2">
-          {facilitiesAll.map((f) => {
-            const checked = filters.facilities.includes(f);
-            return (
-              <label key={f} className="inline-flex items-center text-sm text-black">
-                <input
-                  type="checkbox"
-                  className="mr-2"
-                  checked={checked}
-                  onChange={() =>
-                    setFilters((p) => ({
-                      ...p,
-                      facilities: checked ? p.facilities.filter((x) => x !== f) : [...p.facilities, f],
-                    }))
-                  }
-                />
-                {facilityLabels[f] || f}
-              </label>
-            );
-          })}
-        </div>
+        <button
+          type="button"
+          onClick={() => setOpen((p) => ({ ...p, facilities: !p.facilities }))}
+          className="w-full flex items-center justify-between"
+        >
+          <span className="block text-sm font-medium text-black">Facilities</span>
+          <FiChevronDown className={`text-gray-600 transition-transform ${open.facilities ? 'rotate-180' : ''}`} />
+        </button>
+        {open.facilities && (
+          <div className="mt-2 grid grid-cols-1 gap-2">
+            {facilitiesAll.map((f) => {
+              const checked = filters.facilities.includes(f);
+              return (
+                <label key={f} className="inline-flex items-center text-sm text-black">
+                  <input
+                    type="checkbox"
+                    className="mr-2"
+                    checked={checked}
+                    onChange={() =>
+                      setFilters((p) => ({
+                        ...p,
+                        facilities: checked ? p.facilities.filter((x) => x !== f) : [...p.facilities, f],
+                      }))
+                    }
+                  />
+                  {facilityLabels[f] || f}
+                </label>
+              );
+            })}
+          </div>
+        )}
       </div>
+      </>
+      )}
 
       {/* Errors */}
       {errors.length > 0 && (
@@ -506,7 +577,11 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
       )}
     </div>
   );
-}
+});
+
+QuestionsForm.displayName = 'QuestionsForm';
+
+export default QuestionsForm;
 
 
 
