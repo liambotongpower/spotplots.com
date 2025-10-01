@@ -28,7 +28,7 @@ export default function ListingsResults({ listings }: Props) {
             </a>
           )}
           <button 
-            className="absolute bottom-3 right-8 p-8 text-gray-400 hover:text-gray-600 transition-colors"
+            className="absolute bottom-3 right-8 p-9C text-gray-400 hover:text-gray-600 transition-colors"
             onClick={() => {
               // You can add custom functionality here
               console.log('Search clicked for listing:', l.title);

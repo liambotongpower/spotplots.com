@@ -49,6 +49,33 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
   return (
     <div className="space-y-6 text-black">
 
+      {/* Sort */}
+      <div>
+        <label className="block text-sm font-medium text-black">Sort</label>
+        <select
+          className="mt-2 border rounded-md px-3 py-2 text-sm text-black bg-white"
+          value={filters.sort_type || ''}
+          title="Sort order"
+          onChange={(e) => setFilters((p) => ({ ...p, sort_type: e.target.value || null }))}
+        >
+          <option value="">Select...</option>
+          {sortTypes.map((t) => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Submit */}
+      <div>
+        <button
+          type="button"
+          onClick={submit}
+          className="px-4 py-2 rounded-md bg-green-600 text-white text-sm"
+        >
+          Search
+        </button>
+      </div>
+
       {/* Search Type */}
       <div>
         <label className="block text-sm font-medium text-black">Search Type</label>
@@ -378,22 +405,6 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
         </div>
       </div>
 
-      {/* Sort */}
-      <div>
-        <label className="block text-sm font-medium text-black">Sort</label>
-        <select
-          className="mt-2 border rounded-md px-3 py-2 text-sm text-black bg-white"
-          value={filters.sort_type || ''}
-          title="Sort order"
-          onChange={(e) => setFilters((p) => ({ ...p, sort_type: e.target.value || null }))}
-        >
-          <option value="">Select...</option>
-          {sortTypes.map((t) => (
-            <option key={t} value={t}>{t}</option>
-          ))}
-        </select>
-      </div>
-
       {/* Errors */}
       {errors.length > 0 && (
         <div className="text-red-600 text-sm">
@@ -402,17 +413,6 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
           ))}
         </div>
       )}
-
-      {/* Submit */}
-      <div>
-        <button
-          type="button"
-          onClick={submit}
-          className="px-4 py-2 rounded-md bg-green-600 text-white text-sm"
-        >
-          Search
-        </button>
-      </div>
     </div>
   );
 }
