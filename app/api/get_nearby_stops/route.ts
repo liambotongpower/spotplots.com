@@ -42,26 +42,30 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  if (limit < 1 || limit > 100) {
+  if (limit < 1) {
     return NextResponse.json(
-      { error: 'Limit must be between 1 and 100' },
+      { error: 'Limit must be at least 1' },
       { status: 400 }
     );
   }
 
   try {
-    console.log('🚌 Searching for nearby stops...');
-    console.log(`📍 Location: ${lat}, ${lng}`);
-    console.log(`📏 Max distance: ${maxDistance}m`);
-    console.log(`🔢 Limit: ${limit} results`);
-    console.log(`⚙️ Method: ${useManual ? 'Manual calculation' : 'MongoDB geospatial'}`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🚌 API: Searching for nearby stops...');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(`📍 API: Location: ${lat}, ${lng}`);
+    console.log(`📏 API: Max distance: ${maxDistance}m`);
+    console.log(`🔢 API: Limit: ${limit} results`);
+    console.log(`⚙️ API: Method: ${useManual ? 'Manual calculation' : 'MongoDB geospatial'}`);
+    console.log(`🌐 API: Full URL: ${request.url}`);
+    console.log(`🔍 API: Search params: ${JSON.stringify(Object.fromEntries(searchParams))}`);
 
     // Call the appropriate function based on the useManual parameter
     const stops = useManual 
       ? await getNearbyStopsManual({ lat, lng, maxDistance, limit })
       : await getNearbyStops({ lat, lng, maxDistance, limit });
 
-    console.log(`✅ Found ${stops.length} nearby stops`);
+    console.log(`✅ API: Found ${stops.length} nearby stops`);
 
     // Log the results to console for debugging
     if (stops.length > 0) {

@@ -5,6 +5,7 @@ import { } from 'react-icons/fi';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AddressDropdown from '../components/AddressDropdown';
+import DataPanel from '../components/DataPanel';
 
 // Loader Component
 function Loader() {
@@ -130,13 +131,10 @@ export default function AnySpotPage() {
   const isResultsView = !!query;
   const [isLoading, setIsLoading] = useState(false);
   const [currentTask, setCurrentTask] = useState(0);
+  const [searchResults, setSearchResults] = useState<any>(null);
   
   const loadingTasks = useMemo(() => [
-    'Analyzing location',
-    'Searching listings',
-    'Calculating distances',
-    'Fetching property details',
-    'Preparing results'
+    'Getting nearby stops'
   ], []);
   
   const phrases = useMemo(() => [
@@ -280,6 +278,11 @@ export default function AnySpotPage() {
   useEffect(() => {
     const geocodeAddressAndFindStops = async () => {
       if (query) {
+        // Start loading when we begin
+        setIsLoading(true);
+        setCurrentTask(0);
+        setSearchResults(null);
+        
         try {
           // First, geocode the address
           const geocodeResponse = await fetch(`/api/places/geocode?address=${encodeURIComponent(query)}`);
@@ -296,33 +299,55 @@ export default function AnySpotPage() {
             console.log('  Longitude:', geocodeData.coordinates.lng);
             console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
-            // Then, find nearby stops
+            // Then, find nearby stops using manual method
             try {
               const stopsResponse = await fetch(
-                `/api/get_nearby_stops?lat=${geocodeData.coordinates.lat}&lng=${geocodeData.coordinates.lng}&maxDistance=1000&limit=10`
+                `/api/get_nearby_stops?lat=${geocodeData.coordinates.lat}&lng=${geocodeData.coordinates.lng}&maxDistance=2000&limit=1000&useManual=true`
               );
               const stopsData = await stopsResponse.json();
               
               if (stopsResponse.ok && stopsData.success) {
                 console.log('🚌 NEARBY STOPS FOUND:', stopsData.results.count);
                 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-                stopsData.results.stops.forEach((stop: any, index: number) => {
+                
+                // Show only top 5 stops
+                const topStops = stopsData.results.stops.slice(0, 5);
+                topStops.forEach((stop: any, index: number) => {
                   console.log(`${index + 1}. ${stop.stop_name}`);
                   console.log(`   Distance: ${stop.distance}m`);
                   console.log(`   ID: ${stop.stop_id}`);
                 });
+                
+                if (stopsData.results.count > 5) {
+                  console.log(`... and ${stopsData.results.count - 5} more stops`);
+                }
+                
                 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                
+                // Store results and hide loader
+                setSearchResults({
+                  address: query,
+                  formattedAddress: geocodeData.formatted_address,
+                  coordinates: geocodeData.coordinates,
+                  stops: stopsData.results.stops,
+                  totalCount: stopsData.results.count
+                });
+                setIsLoading(false);
               } else {
                 console.error('Failed to find nearby stops:', stopsData.error);
+                setIsLoading(false);
               }
             } catch (stopsError) {
               console.error('Error finding nearby stops:', stopsError);
+              setIsLoading(false);
             }
           } else {
             console.error('Failed to geocode address:', geocodeData.error);
+            setIsLoading(false);
           }
         } catch (error) {
           console.error('Error geocoding address:', error);
+          setIsLoading(false);
         }
       }
     };
@@ -330,33 +355,6 @@ export default function AnySpotPage() {
     geocodeAddressAndFindStops();
   }, [query]);
 
-  // Loading state with 2-second delay
-  useEffect(() => {
-    if (query) {
-      setIsLoading(true);
-      setCurrentTask(0);
-      
-      // Cycle through tasks
-      const taskInterval = setInterval(() => {
-        setCurrentTask((prev) => {
-          if (prev < loadingTasks.length - 1) {
-            return prev + 1;
-          }
-          return prev;
-        });
-      }, 400); // 2000ms / 5 tasks = 400ms per task
-      
-      const timer = setTimeout(() => {
-        setIsLoading(false);
-        clearInterval(taskInterval);
-      }, 2000);
-      
-      return () => {
-        clearTimeout(timer);
-        clearInterval(taskInterval);
-      };
-    }
-  }, [query, loadingTasks.length]);
 
   // Results view (Google-like layout)
   if (isResultsView) {
@@ -420,24 +418,26 @@ export default function AnySpotPage() {
 
         {/* Main Content */}
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-12">
-          <div className="flex">
-            {/* Left Margin */}
-            <div className="w-80 flex-shrink-0 px-6">
-              {/* Left margin content can be added here if needed */}
+          {isLoading && (
+            <div className="fixed inset-0 top-16 flex flex-col justify-center items-center">
+              <Loader />
+              <div className="mt-8 text-gray-600 text-lg font-medium">
+                {loadingTasks[currentTask]} ({Math.round(((currentTask + 1) / loadingTasks.length) * 100)}%)
+              </div>
             </div>
-            
-            {/* Main Content Area */}
-            <div className="flex-1 px-6">
-              {isLoading && (
-                <div className="fixed inset-0 top-16 flex flex-col justify-center items-center">
-                  <Loader />
-                  <div className="mt-8 text-gray-600 text-lg font-medium">
-                    {loadingTasks[currentTask]} ({Math.round(((currentTask + 1) / loadingTasks.length) * 100)}%)
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+          )}
+          
+          {/* Results Panel */}
+          {!isLoading && searchResults && (
+            <DataPanel
+              title="Nearby Transport Stops"
+              subtitle={`Found ${searchResults.totalCount} stops within 2000m of ${searchResults.formattedAddress}`}
+              data={searchResults.stops}
+              totalCount={searchResults.totalCount}
+              maxDisplay={5}
+              className="w-full"
+            />
+          )}
         </div>
       </div>
     );
