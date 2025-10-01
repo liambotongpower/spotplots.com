@@ -48,6 +48,17 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
 
   return (
     <div className="space-y-6 text-black">
+      
+      {/* Submit - Moved to top */}
+      <div>
+        <button
+          type="button"
+          onClick={submit}
+          className="px-4 py-2 rounded-md bg-green-600 text-white text-sm w-full"
+        >
+          Search
+        </button>
+      </div>
 
       {/* Sort */}
       <div>
@@ -63,17 +74,6 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
             <option key={t} value={t}>{t}</option>
           ))}
         </select>
-      </div>
-
-      {/* Submit */}
-      <div>
-        <button
-          type="button"
-          onClick={submit}
-          className="px-4 py-2 rounded-md bg-green-600 text-white text-sm"
-        >
-          Search
-        </button>
       </div>
 
       {/* Search Type */}
@@ -416,5 +416,7 @@ export default function QuestionsForm({ onSearch, initialFilters }: Props) {
     </div>
   );
 }
+
+
 
 
