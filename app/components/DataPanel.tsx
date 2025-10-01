@@ -65,8 +65,11 @@ export default function DataPanel({
 
   // Check if this is a stop times panel
   const isStopTimesPanel = title === "Nearby Stop Times";
+  
+  // Determine the file extension for the download button
+  const fileExtension = isStopTimesPanel ? "TXT" : "CSV";
 
-  const handleDownloadCSV = () => {
+  const handleDownloadData = () => {
     // Special handling for stop times - create txt file with departure times
     if (isStopTimesPanel) {
       // Format each stop's departure times as requested
@@ -108,7 +111,7 @@ export default function DataPanel({
   };
 
   return (
-    <div className={`bg-white rounded-lg shadow-lg border border-gray-200 p-4 ${className}`}>
+    <div className={`bg-white rounded-lg shadow-lg border border-gray-200 py-10 px-12 my-6 ${className}`}>
       <div className="mb-4">
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-xl font-bold text-gray-900">
@@ -116,14 +119,14 @@ export default function DataPanel({
           </h2>
           {data && data.length > 0 && (
             <button
-              onClick={handleDownloadCSV}
+              onClick={handleDownloadData}
               className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              title="Download data as CSV"
+              title={`Download data as ${fileExtension}`}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              Download CSV
+              Download {fileExtension}
             </button>
           )}
         </div>

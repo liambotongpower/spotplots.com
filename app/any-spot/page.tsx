@@ -474,7 +474,7 @@ export default function AnySpotPage() {
         </div>
 
         {/* Main Content */}
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-12">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-16">
           {isLoading && (
             <div className="fixed inset-0 top-16 flex flex-col justify-center items-center">
               <Loader />
@@ -486,9 +486,9 @@ export default function AnySpotPage() {
           
           {/* Results Panel */}
           {!isLoading && searchResults && (
-            <div className="space-y-8">
+            <div>
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">Transport</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-8">Transport</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <DataPanel
                     title="Nearby Stops"
@@ -523,11 +523,25 @@ export default function AnySpotPage() {
                 </div>
               </div>
               
-              <h2 className="text-2xl font-bold text-gray-900">Amenities</h2>
-              <h2 className="text-2xl font-bold text-gray-900">Safety</h2>
-              <h2 className="text-2xl font-bold text-gray-900">Education</h2>
-              <h2 className="text-2xl font-bold text-gray-900">Current Value and Future Value</h2>
-              <h2 className="text-2xl font-bold text-gray-900">Connectivity</h2>
+              <div className="mt-24 mb-12">
+                <h2 className="text-2xl font-bold text-gray-900 mb-12">Amenities</h2>
+              </div>
+              
+              <div className="mt-24 mb-12">
+                <h2 className="text-2xl font-bold text-gray-900 mb-12">Safety</h2>
+              </div>
+              
+              <div className="mt-24 mb-12">
+                <h2 className="text-2xl font-bold text-gray-900 mb-12">Education</h2>
+              </div>
+              
+              <div className="mt-24 mb-12">
+                <h2 className="text-2xl font-bold text-gray-900 mb-12">Current Value and Future Value</h2>
+              </div>
+              
+              <div className="mt-24 mb-12">
+                <h2 className="text-2xl font-bold text-gray-900 mb-12">Connectivity</h2>
+              </div>
             </div>
           )}
         </div>
