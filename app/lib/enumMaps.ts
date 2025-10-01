@@ -24,8 +24,8 @@ export const facilitiesAll = [
 ];
 
 export const sortTypes = [
-  "MOST_RECENT",
-  "PRICE_ASC",
+  "PUBLISH_DATE_DESC",
+  "PRICE_ASC", 
   "PRICE_DESC",
 ];
 

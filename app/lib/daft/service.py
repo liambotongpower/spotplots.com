@@ -6,6 +6,7 @@ import concurrent.futures
 from fastapi import FastAPI
 from pydantic import BaseModel
 from daftlistings import Daft, Location, SearchType, PropertyType
+from daftlistings.enums import SortType
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -56,6 +57,13 @@ def map_property_type(property_type: Optional[str]) -> Optional[PropertyType]:
         return None
     key = normalize_key(property_type)
     return getattr(PropertyType, key, None)
+
+
+def map_sort_type(sort_type: Optional[str]) -> Optional[SortType]:
+    if not sort_type:
+        return None
+    key = normalize_key(sort_type)
+    return getattr(SortType, key, None)
 
 
 def daft_to_dict(listing: Any) -> Dict[str, Any]:
@@ -161,7 +169,15 @@ def _run_search(filters: SearchFilters):
         logger.info(f"Setting max_baths: {filters.max_baths}")
         daft.set_max_baths(filters.max_baths)
 
-    # Note: facilities and sort_type mapping can be added here if required
+    # Set sorting
+    sort_type_enum = map_sort_type(filters.sort_type)
+    if sort_type_enum is not None:
+        logger.info(f"Setting sort_type: {sort_type_enum}")
+        daft.set_sort_type(sort_type_enum)
+    else:
+        # Default to most recent if no sort specified
+        logger.info("No sort_type specified, defaulting to PUBLISH_DATE_DESC")
+        daft.set_sort_type(SortType.PUBLISH_DATE_DESC)
 
     # Pagination handling
     try:
