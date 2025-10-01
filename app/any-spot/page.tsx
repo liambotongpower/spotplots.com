@@ -5,6 +5,7 @@ import { } from 'react-icons/fi';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AddressDropdown from '../components/AddressDropdown';
+import MapView from '../components/MapView';
 
 export default function AnySpotPage() {
   const router = useRouter();
@@ -224,9 +225,11 @@ export default function AnySpotPage() {
             </div>
           </div>
           
-          {/* Right Margin */}
-          <div className="w-80 flex-shrink-0 px-6">
-            {/* Right margin content can be added here if needed */}
+          {/* Right Margin - Map */}
+          <div className="w-96 flex-shrink-0 px-6 py-6">
+            <div className="sticky top-6">
+              <MapView address={query} />
+            </div>
           </div>
         </div>
       </div>

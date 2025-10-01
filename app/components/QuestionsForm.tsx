@@ -32,17 +32,38 @@ const QuestionsForm = forwardRef<QuestionsFormRef, Props>(({ onSearch, initialFi
   });
 
   useEffect(() => {
+    // Set default selections first
+    const defaults = {
+      sort_type: "PUBLISH_DATE_DESC", // Newest First
+      search_type: "RESIDENTIAL_SALE", // Residential Sale
+      property_type: "HOUSE" // House
+    };
+    
     const saved = loadFilters();
     if (saved) {
-      setFilters((prev) => ({ ...prev, ...saved }));
+      // Merge saved filters with defaults, but only override if saved value is not null
+      setFilters((prev) => {
+        const merged = { ...prev, ...defaults };
+        Object.keys(saved).forEach((key) => {
+          const k = key as keyof Filters;
+          const value = saved[k];
+          // Only override defaults if the saved value is meaningful (not null/undefined)
+          if (value !== null && value !== undefined) {
+            if (Array.isArray(value)) {
+              // Only override arrays if they have content
+              if (value.length > 0) {
+                (merged as any)[k] = value;
+              }
+            } else {
+              (merged as any)[k] = value;
+            }
+          }
+        });
+        return merged;
+      });
     } else {
-      // Set default selections if no saved filters
-      setFilters((prev) => ({ 
-        ...prev, 
-        sort_type: "PUBLISH_DATE_DESC", // Newest First
-        search_type: "COMMERCIAL_SALE", // Commercial Sale
-        property_type: "HOUSE" // House
-      }));
+      // No saved filters, just use defaults
+      setFilters((prev) => ({ ...prev, ...defaults }));
     }
   }, []);
 
