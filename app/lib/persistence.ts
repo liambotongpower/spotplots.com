@@ -1,4 +1,4 @@
-import { Filters } from "./schema";
+import { Filters } from "./types";
 
 const KEY = "your-spot-filters";
 

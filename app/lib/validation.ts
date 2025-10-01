@@ -1,4 +1,4 @@
-import { Filters } from "./schema";
+import { Filters } from "./types";
 
 export function validateFilters(filters: Filters): string[] {
   const errors: string[] = [];

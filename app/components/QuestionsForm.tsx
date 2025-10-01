@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, useImperativeHandle, forwardRef } from 'react';
-import { defaultFilters, Filters } from '../lib/schema';
+import { defaultFilters, Filters } from '../lib/types';
 import { loadFilters, saveFilters } from '../lib/persistence';
 import { validateFilters } from '../lib/validation';
 import { searchTypes, propertyTypes, facilitiesAll, sortTypes, sortLabels, searchTypeLabels, propertyTypeLabels, facilityLabels } from '../lib/enumMaps';

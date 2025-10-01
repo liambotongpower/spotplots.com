@@ -1,29 +1,46 @@
-export interface Filters {
-  counties: string[];
-  search_type: string | null;
-  property_type: string | null;
-  min_beds: number | null;
-  max_beds: number | null;
-  min_baths: number | null;
-  max_baths: number | null;
-  min_price: number | null;
-  max_price: number | null;
-  facilities: string[];
-  sort_type: string | null;
-  page: number;
+import mongoose, { Schema, Document } from 'mongoose';
+
+// Transport Stop Schema
+export interface IStop extends Document {
+  stop_id: string;
+  stop_code: number;
+  stop_name: string;
+  stop_lat: number;
+  stop_lon: number;
+  location: {
+    type: 'Point';
+    coordinates: [number, number]; // [longitude, latitude]
+  };
 }
 
-export const defaultFilters: Filters = {
-  counties: [],
-  search_type: null,
-  property_type: null,
-  min_beds: null,
-  max_beds: null,
-  min_baths: null,
-  max_baths: null,
-  min_price: null,
-  max_price: null,
-  facilities: [],
-  sort_type: null,
-  page: 1,
-};
+const StopSchema = new Schema<IStop>({
+  stop_id: { type: String, required: true, index: true },
+  stop_code: { type: Number, required: true },
+  stop_name: { type: String, required: true },
+  stop_lat: { type: Number, required: true },
+  stop_lon: { type: Number, required: true },
+  location: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number],
+      index: '2dsphere'
+    }
+  }
+});
+
+// Create a virtual to automatically populate the location field from lat/lon
+StopSchema.pre('save', function(next) {
+  if (this.stop_lat && this.stop_lon) {
+    this.location = {
+      type: 'Point',
+      coordinates: [this.stop_lon, this.stop_lat] // MongoDB expects [lng, lat]
+    };
+  }
+  next();
+});
+
+export const Stop = mongoose.models.Stop || mongoose.model<IStop>('Stop', StopSchema, 'stops');

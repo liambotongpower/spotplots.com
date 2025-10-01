@@ -8,7 +8,7 @@ import CountyDropdown, { ALL_COUNTIES } from '../components/CountyDropdown';
 import QuestionsForm, { QuestionsFormRef } from '../components/QuestionsForm';
 import ListingsResults from '../components/ListingsResults';
 import PaginationControls from '../components/PaginationControls';
-import { Filters, defaultFilters } from '../lib/schema';
+import { Filters, defaultFilters } from '../lib/types';
 
 export default function YourSpotPage() {
   const router = useRouter();

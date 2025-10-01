@@ -276,6 +276,60 @@ export default function AnySpotPage() {
     return () => clearTimeout(timeout);
   }, [displayedText, isDeleting, currentPhraseIndex, phrases]);
 
+  // Geocode address and find nearby stops
+  useEffect(() => {
+    const geocodeAddressAndFindStops = async () => {
+      if (query) {
+        try {
+          // First, geocode the address
+          const geocodeResponse = await fetch(`/api/places/geocode?address=${encodeURIComponent(query)}`);
+          const geocodeData = await geocodeResponse.json();
+          
+          if (geocodeResponse.ok && geocodeData.coordinates) {
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('📍 ADDRESS GEOCODING RESULTS');
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('Address:', query);
+            console.log('Formatted Address:', geocodeData.formatted_address);
+            console.log('Coordinates:', geocodeData.coordinates);
+            console.log('  Latitude:', geocodeData.coordinates.lat);
+            console.log('  Longitude:', geocodeData.coordinates.lng);
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+            // Then, find nearby stops
+            try {
+              const stopsResponse = await fetch(
+                `/api/get_nearby_stops?lat=${geocodeData.coordinates.lat}&lng=${geocodeData.coordinates.lng}&maxDistance=1000&limit=10`
+              );
+              const stopsData = await stopsResponse.json();
+              
+              if (stopsResponse.ok && stopsData.success) {
+                console.log('🚌 NEARBY STOPS FOUND:', stopsData.results.count);
+                console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                stopsData.results.stops.forEach((stop: any, index: number) => {
+                  console.log(`${index + 1}. ${stop.stop_name}`);
+                  console.log(`   Distance: ${stop.distance}m`);
+                  console.log(`   ID: ${stop.stop_id}`);
+                });
+                console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+              } else {
+                console.error('Failed to find nearby stops:', stopsData.error);
+              }
+            } catch (stopsError) {
+              console.error('Error finding nearby stops:', stopsError);
+            }
+          } else {
+            console.error('Failed to geocode address:', geocodeData.error);
+          }
+        } catch (error) {
+          console.error('Error geocoding address:', error);
+        }
+      }
+    };
+    
+    geocodeAddressAndFindStops();
+  }, [query]);
+
   // Loading state with 2-second delay
   useEffect(() => {
     if (query) {
