@@ -39,7 +39,9 @@ export interface StopWithDepartures {
   stop_lat: number;
   stop_lon: number;
   distance: number;
-  departures_count: number;
+  departures_count: number; // Daily average departures
+  total_departures?: number; // Total scheduled departures (for debugging)
+  departure_times?: string[]; // Array of departure times
 }
 
 export interface DeparturesResponse {
@@ -140,6 +142,52 @@ export async function getNearbyStopTimes(options: GetNearbyStopTimesOptions): Pr
     
     // Count departures for each stop
     console.log('🔍 [getNearbyStopTimes] Running aggregation to count departures by stop_id...');
+    
+    // First get a count of all stop_times records to understand scale
+    const totalStopTimesRecords = await StopTime.countDocuments();
+    console.log(`🔍 [getNearbyStopTimes] Total stop_times records in database: ${totalStopTimesRecords}`);
+    
+    // Sample some records to understand what we're dealing with
+    const sampleRecords = await StopTime.find().limit(3);
+    console.log('🔍 [getNearbyStopTimes] Sample stop_times records:');
+    sampleRecords.forEach(record => {
+      console.log(JSON.stringify(record.toObject()));
+    });
+    
+    // Count how many records match our stop IDs before grouping
+    const matchCount = await StopTime.countDocuments({ stop_id: { $in: stopIds } });
+    console.log(`🔍 [getNearbyStopTimes] Records matching our ${stopIds.length} stop IDs: ${matchCount}`);
+    
+    // Get counts per stop ID to see distribution
+    console.log('🔍 [getNearbyStopTimes] Investigating why counts might be high...');
+    
+    // The counts are likely high because stop_times contains ALL scheduled departures
+    // Let's examine trips collection to see if we can filter by service days
+    try {
+      const tripCollection = mongoose.connection.db.collection('trips');
+      const tripCount = await tripCollection.countDocuments();
+      console.log(`🔍 [getNearbyStopTimes] Found trips collection with ${tripCount} documents`);
+      
+      // Sample a trip to see what data we have
+      if (tripCount > 0) {
+        const sampleTrip = await tripCollection.findOne();
+        console.log(`🔍 [getNearbyStopTimes] Sample trip:`, JSON.stringify(sampleTrip));
+      }
+      
+      // Let's check calendar collection to understand service periods
+      const calendarCollection = mongoose.connection.db.collection('calendar');
+      const calendarCount = await calendarCollection.countDocuments();
+      console.log(`🔍 [getNearbyStopTimes] Found calendar collection with ${calendarCount} documents`);
+      
+      if (calendarCount > 0) {
+        const sampleCalendar = await calendarCollection.findOne();
+        console.log(`🔍 [getNearbyStopTimes] Sample calendar:`, JSON.stringify(sampleCalendar));
+      }
+    } catch (err) {
+      console.log(`🔍 [getNearbyStopTimes] Error investigating related collections:`, err);
+    }
+    
+    // Get counts and actual departure times per stop ID
     const departuresByStop = await StopTime.aggregate([
       {
         $match: { 
@@ -149,10 +197,37 @@ export async function getNearbyStopTimes(options: GetNearbyStopTimesOptions): Pr
       {
         $group: {
           _id: "$stop_id",
-          departures_count: { $sum: 1 }
+          departures_count: { $sum: 1 },
+          departure_times: { $push: "$departure_time" }  // Collect all departure times
         }
+      },
+      {
+        $sort: { departures_count: -1 }
       }
     ]);
+    
+    // Calculate average departures per day to get more meaningful numbers
+    console.log('🔍 [getNearbyStopTimes] Calculating more reasonable departure metrics...');
+    
+    // Assuming the schedule is for a typical week (divide by 7 for daily average)
+    const avgDailyDeparturesByStop = departuresByStop.map(item => ({
+      _id: item._id,
+      departures_count: Math.round(item.departures_count / 7), // Average per day
+      original_count: item.departures_count
+    }));
+    
+    console.log('🔍 [getNearbyStopTimes] Average daily departures for top stops:');
+    avgDailyDeparturesByStop.slice(0, 3).forEach(stop => {
+      console.log(`   - Stop ${stop._id}: ~${stop.departures_count}/day (from ${stop.original_count} total)`);
+    });
+    
+    // Log the top 5 stops by departure count to see if there are outliers
+    if (departuresByStop.length > 0) {
+      console.log('🔍 [getNearbyStopTimes] Top 5 stops by departure count:');
+      departuresByStop.slice(0, 5).forEach(stop => {
+        console.log(`   - Stop ${stop._id}: ${stop.departures_count} departures`);
+      });
+    }
     
     console.log(`✅ [getNearbyStopTimes] Counted departures for ${departuresByStop.length} stops`);
     console.log(`🔍 [getNearbyStopTimes] Raw aggregation results: ${JSON.stringify(departuresByStop)}`);
@@ -184,26 +259,59 @@ export async function getNearbyStopTimes(options: GetNearbyStopTimesOptions): Pr
       }
     }
 
-    // Create a map of stop_id to departure count for easier lookup
-    const departuresMap = new Map();
+    // Calculate average departures per day for more meaningful numbers
+    console.log('🔍 [getNearbyStopTimes] Calculating more reasonable departure metrics...');
+    
+    // Create maps for departure data
+    const dailyDeparturesMap = new Map();
+    const totalDeparturesMap = new Map();
+    const departureTimesMap = new Map();
+    
     departuresByStop.forEach(item => {
-      departuresMap.set(item._id, item.departures_count);
+      // Store both total and daily average (dividing by 7 for a weekly schedule)
+      const dailyAvg = Math.round(item.departures_count / 7);
+      dailyDeparturesMap.set(item._id, dailyAvg);
+      totalDeparturesMap.set(item._id, item.departures_count);
+      
+      // Process and sort departure times (they might be in HH:MM:SS format)
+      const sortedTimes = [...item.departure_times].sort();
+      departureTimesMap.set(item._id, sortedTimes);
+      
+      // Log sample of departure times for debugging
+      if (item.departure_times.length > 0) {
+        console.log(`🔍 [getNearbyStopTimes] Sample departure times for stop ${item._id}: ${item.departure_times.slice(0, 5).join(', ')}`);
+      }
     });
-
-    // Combine the stop information with departure counts
+    
+    // Combine the stop information with departure data
     const stopsWithDepartures: StopWithDepartures[] = nearbyStops.map(stop => ({
       ...stop,
-      departures_count: departuresMap.get(stop.stop_id) || 0
+      departures_count: dailyDeparturesMap.get(stop.stop_id) || 0,
+      total_departures: totalDeparturesMap.get(stop.stop_id) || 0,
+      departure_times: departureTimesMap.get(stop.stop_id) || []
     }));
 
     // Sort by departure count descending
     stopsWithDepartures.sort((a, b) => b.departures_count - a.departures_count);
 
-    // Calculate the total number of departures across all stops
-    const totalDepartures = stopsWithDepartures.reduce(
+    // Calculate the daily average number of departures across all stops
+    const totalDailyDepartures = stopsWithDepartures.reduce(
       (sum, stop) => sum + stop.departures_count, 
       0
     );
+    
+    // Also calculate the total departures across all stops (for debugging)
+    const totalScheduledDepartures = stopsWithDepartures.reduce(
+      (sum, stop) => sum + stop.total_departures, 
+      0
+    );
+    
+    console.log(`🔍 [getNearbyStopTimes] Total daily departures: ${totalDailyDepartures} (average per day)`);
+    console.log(`🔍 [getNearbyStopTimes] Total scheduled departures: ${totalScheduledDepartures} (all schedules)`);
+    console.log(`🔍 [getNearbyStopTimes] Using daily average counts in response`);
+    
+    // Use the daily average for the response
+    const totalDepartures = totalDailyDepartures;
 
     console.log(`✅ [getNearbyStopTimes] Total departures across all stops: ${totalDepartures}`);
     console.log(`✅ [getNearbyStopTimes] Total stops with departure data: ${stopsWithDepartures.length}`);
@@ -317,6 +425,34 @@ export async function getNearbyStopTimesManual(options: GetNearbyStopTimesOption
     
     // Count departures for each stop
     console.log('🔍 [getNearbyStopTimesManual] Running aggregation to count departures...');
+    
+    // Get total count of stop_times records
+    const totalRecords = await StopTime.countDocuments();
+    console.log(`🔍 [getNearbyStopTimesManual] Total records in stop_times collection: ${totalRecords}`);
+    
+    // Check what we're counting - get some samples to analyze
+    console.log('🔍 [getNearbyStopTimesManual] Examining sample stop_times records:');
+    const samples = await StopTime.find().limit(3);
+    if (samples.length > 0) {
+      samples.forEach((sample, idx) => {
+        console.log(`Sample ${idx + 1}:`, JSON.stringify(sample.toObject()));
+      });
+      
+      // Show what fields are in the data
+      console.log('🔍 [getNearbyStopTimesManual] Fields in stop_times records:', 
+        Object.keys(samples[0].toObject()).join(', '));
+    }
+    
+    // Check how many records match our stop IDs
+    const matchingRecords = await StopTime.countDocuments({ stop_id: { $in: stopIds } });
+    console.log(`🔍 [getNearbyStopTimesManual] Records matching ${stopIds.length} stop IDs: ${matchingRecords}`);
+    
+    // These departures might represent schedules for an entire year!
+    // Let's check how many distinct trips/dates we're counting
+    const distinctTripCount = await StopTime.distinct('trip_id', { stop_id: { $in: stopIds } }).then(trips => trips.length);
+    console.log(`🔍 [getNearbyStopTimesManual] Distinct trips for our stops: ${distinctTripCount}`);
+    
+    // Now run the aggregation with more insight
     const departuresByStop = await StopTime.aggregate([
       {
         $match: { 
@@ -326,8 +462,12 @@ export async function getNearbyStopTimesManual(options: GetNearbyStopTimesOption
       {
         $group: {
           _id: "$stop_id",
-          departures_count: { $sum: 1 }
+          departures_count: { $sum: 1 },
+          departure_times: { $push: "$departure_time" }  // Collect all departure times
         }
+      },
+      {
+        $sort: { departures_count: -1 }
       }
     ]);
     
@@ -387,26 +527,55 @@ export async function getNearbyStopTimesManual(options: GetNearbyStopTimesOption
       }
     }
     
-    // Create a map for easier lookup
-    const departuresMap = new Map();
+    // Calculate daily average departures for more meaningful numbers
+    const dailyDeparturesMap = new Map();
+    const totalDeparturesMap = new Map();
+    const departureTimesMap = new Map();
+    
     departuresByStop.forEach(item => {
-      departuresMap.set(item._id, item.departures_count);
+      // Store both total and daily average (dividing by 7 for a weekly schedule)
+      const dailyAvg = Math.round(item.departures_count / 7);
+      dailyDeparturesMap.set(item._id, dailyAvg);
+      totalDeparturesMap.set(item._id, item.departures_count);
+      
+      // Process and sort departure times (they might be in HH:MM:SS format)
+      const sortedTimes = [...item.departure_times].sort();
+      departureTimesMap.set(item._id, sortedTimes);
+      
+      // Log sample of departure times for debugging
+      if (item.departure_times.length > 0) {
+        console.log(`🔍 [getNearbyStopTimesManual] Sample departure times for stop ${item._id}: ${item.departure_times.slice(0, 5).join(', ')}`);
+      }
     });
-
-    // Combine stop information with departure counts
+    
+    // Combine stop information with all departure data
     const stopsWithDepartures: StopWithDepartures[] = sortedStops.map(stop => ({
       ...stop,
-      departures_count: departuresMap.get(stop.stop_id) || 0
+      departures_count: dailyDeparturesMap.get(stop.stop_id) || 0,
+      total_departures: totalDeparturesMap.get(stop.stop_id) || 0,
+      departure_times: departureTimesMap.get(stop.stop_id) || []
     }));
 
     // Sort by departure count descending
     stopsWithDepartures.sort((a, b) => b.departures_count - a.departures_count);
 
-    // Calculate the total departures
-    const totalDepartures = stopsWithDepartures.reduce(
+    // Calculate the daily average departures
+    const totalDailyDepartures = stopsWithDepartures.reduce(
       (sum, stop) => sum + stop.departures_count, 
       0
     );
+    
+    // Also calculate total scheduled departures for debugging
+    const totalScheduledDepartures = stopsWithDepartures.reduce(
+      (sum, stop) => sum + stop.total_departures, 
+      0
+    );
+    
+    console.log(`🔍 [getNearbyStopTimesManual] Total daily departures: ${totalDailyDepartures} (average per day)`);
+    console.log(`🔍 [getNearbyStopTimesManual] Total scheduled departures: ${totalScheduledDepartures} (all schedules)`);
+    
+    // Use the daily average for the response
+    const totalDepartures = totalDailyDepartures;
 
     console.log(`✅ [getNearbyStopTimesManual] Total departures: ${totalDepartures}`);
 

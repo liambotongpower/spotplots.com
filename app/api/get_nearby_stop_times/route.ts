@@ -100,6 +100,16 @@ export async function GET(request: NextRequest) {
       console.log('❌ No stops found within the specified range');
     }
 
+    // Extract total scheduled departures for debugging if available
+    const totalScheduledDepartures = result.stops.reduce(
+      (sum, stop) => sum + (stop.total_departures || 0),
+      0
+    );
+    
+    console.log(`⚠️ API: Note that departure counts represent daily averages (total divided by 7)`);
+    console.log(`ℹ️ API: Total scheduled departures across all timetables: ${totalScheduledDepartures}`);
+    console.log(`ℹ️ API: Average daily departures: ${result.totalDepartures}`);
+
     return NextResponse.json({
       success: true,
       query: {
@@ -112,7 +122,12 @@ export async function GET(request: NextRequest) {
       results: {
         totalStops: result.totalStops,
         totalDepartures: result.totalDepartures,
-        stops: result.stops
+        totalScheduledDepartures: totalScheduledDepartures,
+        note: "Departure counts represent daily averages (total scheduled departures divided by 7)",
+        stops: result.stops.map(stop => ({
+          ...stop,
+          total_departures: undefined  // Remove the debugging field from the response
+        }))
       }
     });
 

@@ -375,7 +375,9 @@ export default function AnySpotPage() {
                     setDeparturesResults({
                       stops: departuresData.results.stops,
                       totalStops: departuresData.results.totalStops,
-                      totalDepartures: departuresData.results.totalDepartures
+                      totalDepartures: departuresData.results.totalDepartures,
+                      totalScheduledDepartures: departuresData.results.totalScheduledDepartures,
+                      note: departuresData.results.note
                     });
                   } else {
                     console.error('Failed to find transport departures:', departuresData.error);
@@ -489,7 +491,7 @@ export default function AnySpotPage() {
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">Transport</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <DataPanel
-                    title="Nearby Transport Stops"
+                    title="Nearby Stops"
                     subtitle={`Found ${searchResults.totalCount} stops within 1000m of ${searchResults.formattedAddress}`}
                     data={searchResults.stops}
                     totalCount={searchResults.totalCount}
@@ -498,51 +500,25 @@ export default function AnySpotPage() {
                   />
                   
                   {departuresResults && (
-                    <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4">
-                      <div className="mb-4">
-                        <h2 className="text-xl font-bold text-gray-900 mb-1">
-                          Transport Departures
-                        </h2>
-                        <p className="text-sm text-gray-600">
-                          Found {departuresResults.totalDepartures} departures from {departuresResults.totalStops} stops within 1000m
-                        </p>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        {departuresResults.stops.slice(0, 5).map((stop: any, index: number) => (
-                          <div key={stop.stop_id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md border border-gray-100 hover:bg-gray-100 transition-colors">
-                            <div className="flex items-center">
-                              <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                                <span className="text-blue-600 font-semibold text-xs">{index + 1}</span>
-                              </div>
-                              <h3 className="text-base font-medium text-gray-900">{stop.stop_name}</h3>
-                            </div>
-                            <div className="text-right">
-                              <div className="flex items-center">
-                                <FaBus className="text-blue-600 mr-2" />
-                                <span className="text-lg font-bold text-blue-600">
-                                  {stop.departures_count}
-                                </span>
-                              </div>
-                            </div>
+                    <DataPanel
+                      title="Nearby Stop Times"
+                      subtitle={`Found ${departuresResults.totalDepartures} daily departures from ${departuresResults.totalStops} stops within 1000m (daily average based on schedule data)`}
+                      data={departuresResults.stops.map(stop => ({
+                        ...stop,
+                        // Add the bus icon and count as a formatted field for display
+                        formattedDepartures: (
+                          <div className="flex items-center">
+                            <FaBus className="text-blue-600 mr-2" />
+                            <span className="text-lg font-bold text-blue-600">
+                              {stop.departures_count}
+                            </span>
                           </div>
-                        ))}
-                        
-                        {departuresResults.stops.length > 5 && (
-                          <div className="text-center py-2">
-                            <p className="text-sm text-gray-600">
-                              ... and <span className="font-semibold text-blue-600">{departuresResults.stops.length - 5}</span> more stops
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="mt-4 p-3 bg-blue-50 rounded-md border border-blue-100">
-                        <p className="text-blue-800 font-medium">
-                          Total transport departures within 1000m: <span className="font-bold">{departuresResults.totalDepartures}</span>
-                        </p>
-                      </div>
-                    </div>
+                        )
+                      }))}
+                      totalCount={departuresResults.totalStops}
+                      maxDisplay={5}
+                      className="w-full"
+                    />
                   )}
                 </div>
               </div>

@@ -63,11 +63,48 @@ export default function DataPanel({
   const displayData = data.slice(0, maxDisplay);
   const remainingCount = totalCount ? totalCount - maxDisplay : 0;
 
+  // Check if this is a stop times panel
+  const isStopTimesPanel = title === "Nearby Stop Times";
+
   const handleDownloadCSV = () => {
-    const csvContent = convertToCSV(data);
-    const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-    const filename = `${title.toLowerCase().replace(/\s+/g, '-')}-${timestamp}.csv`;
-    downloadCSV(csvContent, filename);
+    // Special handling for stop times - create txt file with departure times
+    if (isStopTimesPanel) {
+      // Format each stop's departure times as requested
+      const lines = data.map((stop, index) => {
+        // Extract just the time part from each departure_time (remove seconds if present)
+        const formattedTimes = (stop.departure_times || [])
+          .map(time => {
+            // If time format is HH:MM:SS, convert to HH:MM
+            const match = time.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+            return match ? `${match[1]}:${match[2]}` : time;
+          })
+          .sort() // Sort times chronologically
+          .slice(0, 100); // Limit to first 100 times for readability
+        
+        return `${index + 1}: '${stop.stop_id}', ${formattedTimes.join(', ')}`;
+      });
+
+      const txtContent = lines.join('\n');
+      const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      const filename = `${title.toLowerCase().replace(/\s+/g, '-')}-${timestamp}.txt`;
+      
+      // Use the same download mechanism, but with text/plain content type
+      const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      // Regular CSV download for other data panels
+      const csvContent = convertToCSV(data);
+      const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      const filename = `${title.toLowerCase().replace(/\s+/g, '-')}-${timestamp}.csv`;
+      downloadCSV(csvContent, filename);
+    }
   };
 
   return (
@@ -107,9 +144,14 @@ export default function DataPanel({
               <h3 className="text-base font-medium text-gray-900">{item.stop_name || item.name}</h3>
             </div>
             <div className="text-right">
-              <div className="text-lg font-bold text-blue-600">
-                {Math.round(item.distance)}m
-              </div>
+              {/* Show formattedDepartures if available, otherwise show distance */}
+              {item.formattedDepartures ? (
+                item.formattedDepartures
+              ) : (
+                <div className="text-lg font-bold text-blue-600">
+                  {Math.round(item.distance)}m
+                </div>
+              )}
             </div>
           </div>
         ))}
