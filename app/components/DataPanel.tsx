@@ -178,6 +178,41 @@ export default function DataPanel({
     }
   };
 
+  const handleDownloadChart = async () => {
+    if (!data || data.length === 0) {
+      console.error('No routes data available for chart generation');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/chart_generator', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          routes: data
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Chart generation failed: ${response.status}`);
+      }
+
+      // Get the image blob from the response
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      
+      const timestamp = new Date().toISOString().split('T')[0];
+      const filename = `transport-routes-chart-${timestamp}.png`;
+      
+      downloadImage(url, filename);
+      console.log('📊 Transport routes chart downloaded');
+    } catch (error) {
+      console.error('Error generating chart:', error);
+    }
+  };
+
   const handleDownloadInsights = () => {
     alert('No insights available');
   };
@@ -208,10 +243,7 @@ export default function DataPanel({
 
               {/* View Map/Chart Button */}
               <button
-                onClick={title === 'Nearby Stops' ? handleDownloadMap : () => {
-                  // TODO: Add functionality for chart download
-                  console.log('Download Chart clicked');
-                }}
+                onClick={title === 'Nearby Stops' ? handleDownloadMap : handleDownloadChart}
                 className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-green-600 bg-green-50 hover:bg-green-100 border border-green-200 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                 title={title === 'Nearby Stops' ? 'Download Map' : 'Download Chart'}
               >
