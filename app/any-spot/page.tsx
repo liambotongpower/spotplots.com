@@ -503,6 +503,8 @@ export default function AnySpotPage() {
                   totalCount={searchResults.totalCount}
                   maxDisplay={5}
                   className="w-full"
+                  userLocation={searchResults.coordinates}
+                  address={searchResults.formattedAddress}
                 />
                 {departuresResults && (
                   <DataPanel

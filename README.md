@@ -70,13 +70,15 @@ SpotPlots is a modern property search application for Ireland that provides two 
   - MongoDB geospatial queries and manual calculation options
 
 ### 4. Map Integration
-- **Implementation**: Google Maps JavaScript API
-- **Key Files**: `app/components/MapView.tsx`
+- **Implementation**: Google Maps JavaScript API + Static Maps API
+- **Key Files**: `app/components/MapView.tsx`, `app/api/generate_map/route.ts`
 - **Features**:
   - Dynamic map loading and initialization
   - Address geocoding
   - Marker placement
   - Error handling and loading states
+  - Static map generation for download
+  - Transport stops visualization with stop codes
 
 ## API Endpoints
 
@@ -107,6 +109,21 @@ SpotPlots is a modern property search application for Ireland that provides two 
   - `maxDistance`: Maximum search radius (meters)
   - `limit`: Maximum number of results
   - `useManual`: Boolean to toggle calculation method
+
+#### 4. `/api/generate_map`
+- **Method**: POST
+- **Purpose**: Generate static map image with transport stops using Mapbox Static Images API
+- **Parameters**:
+  - `stops`: Array of stop objects with coordinates and stop codes
+  - `userLocation`: User's search location coordinates
+  - `address`: Formatted address string
+- **Response**: Base64 encoded PNG image with markers
+- **Features**:
+  - Automatic bounds calculation
+  - Blue pin markers for stops with stop_id labels
+  - Red pin marker for user location
+  - Optimized zoom level
+  - Supports all 33+ stops with proper labeling
 
 ### Backend API (FastAPI)
 
@@ -273,9 +290,10 @@ SpotPlots is a modern property search application for Ireland that provides two 
   - Geocoding API
 
 ### Google Maps API
-- **Usage**: Map visualization
+- **Usage**: Map visualization and static map generation
 - **Configuration**: API key in .env file
-- **Libraries Used**: Maps JavaScript API, Places library
+- **Libraries Used**: Maps JavaScript API, Places library, Static Maps API
+- **Required APIs**: Maps JavaScript API, Places API, Static Maps API
 
 ### Daft.ie API
 - **Usage**: Property listings data
@@ -285,17 +303,35 @@ SpotPlots is a modern property search application for Ireland that provides two 
 ## Development Workflow
 
 ### Local Development
-1. Start Python backend:
+1. Set up environment variables:
+   ```bash
+   # Create .env.local file with:
+   GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
+   ```
+
+2. Start Python backend:
    ```bash
    cd app/lib/daft
    source venv/bin/activate
    uvicorn service:app --host 127.0.0.1 --port 8000 --reload
    ```
 
-2. Start Next.js frontend:
+3. Start Next.js frontend:
    ```bash
    npm run dev
    ```
+
+### Environment Setup
+- **Google Maps API Key**: Required for map functionality (Maps JavaScript API, Places API)
+- **Mapbox Access Token**: Required for static map generation with custom markers
+- **API Permissions**: 
+  - Google Cloud Console: Enable Maps JavaScript API, Places API
+  - Mapbox: Get access token from [Mapbox Account](https://account.mapbox.com/access-tokens/)
+- **Environment File**: Create `.env.local` in project root with both keys:
+  ```
+  GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
+  MAPBOX_ACCESS_TOKEN=your_mapbox_access_token_here
+  ```
 
 ### Testing
 - Backend testing via `main.py` script

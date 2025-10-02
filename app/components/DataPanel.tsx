@@ -7,6 +7,8 @@ interface DataPanelProps {
   totalCount?: number;
   maxDisplay?: number;
   className?: string;
+  userLocation?: { lat: number; lng: number };
+  address?: string;
 }
 
 // Utility function to convert data to CSV format
@@ -52,13 +54,26 @@ function downloadCSV(csvContent: string, filename: string) {
   }
 }
 
+// Utility function to download image file
+function downloadImage(imageUrl: string, filename: string) {
+  const link = document.createElement('a');
+  link.href = imageUrl;
+  link.download = filename;
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
 export default function DataPanel({ 
   title, 
   subtitle, 
   data, 
   totalCount, 
   maxDisplay = 5,
-  className = ""
+  className = "",
+  userLocation,
+  address
 }: DataPanelProps) {
   const displayData = data.slice(0, maxDisplay);
   const remainingCount = totalCount ? totalCount - maxDisplay : 0;
@@ -76,7 +91,7 @@ export default function DataPanel({
       const lines = data.map((stop, index) => {
         // Extract just the time part from each departure_time (remove seconds if present)
         const formattedTimes = (stop.departure_times || [])
-          .map(time => {
+          .map((time: string) => {
             // If time format is HH:MM:SS, convert to HH:MM
             const match = time.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
             return match ? `${match[1]}:${match[2]}` : time;
@@ -110,22 +125,91 @@ export default function DataPanel({
     }
   };
 
+  const handleDownloadMap = async () => {
+    if (!userLocation || !data || data.length === 0) {
+      console.error('Missing user location or stops data for map generation');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/generate_map', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          stops: data,
+          userLocation,
+          address
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Map generation failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success && result.imageUrl) {
+        const timestamp = new Date().toISOString().split('T')[0];
+        
+        if (result.provider === 'openstreetmap-leaflet-screenshot') {
+          // For OpenStreetMap screenshot, download as PNG
+          const filename = `nearby-stops-map-${timestamp}.png`;
+          downloadImage(result.imageUrl, filename);
+          console.log('📸 OpenStreetMap screenshot downloaded');
+          console.log(`📊 Showing ${result.displayedStops} of ${result.stopsCount} stops on map`);
+        } else if (result.provider === 'openstreetmap-leaflet') {
+          // For OpenStreetMap HTML, download as HTML file
+          const filename = `nearby-stops-map-${timestamp}.html`;
+          downloadImage(result.imageUrl, filename);
+          console.log('🗺️ OpenStreetMap HTML map downloaded');
+          console.log(`📊 Showing ${result.displayedStops} of ${result.stopsCount} stops on map`);
+        } else {
+          // For other providers, download as PNG
+          const filename = `nearby-stops-map-${timestamp}.png`;
+          downloadImage(result.imageUrl, filename);
+        }
+      } else {
+        console.error('Map generation failed:', result.error);
+      }
+    } catch (error) {
+      console.error('Error generating map:', error);
+    }
+  };
+
+  const handleDownloadInsights = () => {
+    alert('No insights available');
+  };
+
   return (
     <div className={`bg-white rounded-lg shadow-lg border border-gray-200 py-10 px-12 my-6 ${className}`}>
       <div className="mb-4">
         <div className="flex items-center justify-between mb-1">
-          <h2 className="text-xl font-bold text-gray-900">
+          <h2 className="text-xl font-bold text-gray-900 pl-3 pr-1 py-0.5">
             {title}
           </h2>
           {data && data.length > 0 && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 pt-2 pr-3">
+              {/* Download Insights Button */}
+              <button
+                onClick={handleDownloadInsights}
+                className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                title="Download insights"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+                Download insights
+              </button>
+
               {/* View Map/Chart Button */}
               <button
-                onClick={() => {
-                  // TODO: Add functionality for map/chart download
-                  console.log(`${title === 'Nearby Stops' ? 'Download Map' : 'Download Chart'} clicked`);
+                onClick={title === 'Nearby Stops' ? handleDownloadMap : () => {
+                  // TODO: Add functionality for chart download
+                  console.log('Download Chart clicked');
                 }}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-green-600 bg-green-50 hover:bg-green-100 border border-green-200 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-green-600 bg-green-50 hover:bg-green-100 border border-green-200 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                 title={title === 'Nearby Stops' ? 'Download Map' : 'Download Chart'}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -141,7 +225,7 @@ export default function DataPanel({
               {/* Download Button */}
               <button
                 onClick={handleDownloadData}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 title={`Download data as ${fileExtension}`}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -153,7 +237,7 @@ export default function DataPanel({
           )}
         </div>
         {subtitle && (
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 pl-3 pr-1 py-0.5">
             {subtitle}
           </p>
         )}
