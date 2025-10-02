@@ -491,11 +491,10 @@ export default function AnySpotPage() {
           }
           {!isLoading && searchResults && (
             <div>
-              <Spacer size="3xl" />
-              <Spacer size="xl" />
+              <Spacer size="lg" />
               <SectionHeader title="Transport" />
-              <Spacer size="xl" />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <Spacer size="lg" />
+              <div className="flex flex-col gap-8">
                 <DataPanel
                   title="Nearby Stops"
                   subtitle={`Found ${searchResults.totalCount} stops within 1000m of ${searchResults.formattedAddress}`}
