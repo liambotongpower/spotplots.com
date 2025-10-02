@@ -6,6 +6,8 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AddressDropdown from '../components/AddressDropdown';
 import DataPanel from '../components/DataPanel';
+import Spacer from '../components/Spacer';
+import SectionHeader from '../components/SectionHeader';
 
 // Loader Component
 function Loader() {
@@ -363,7 +365,7 @@ export default function AnySpotPage() {
                     const firstFiveStops = departuresData.results.stops.slice(0, 5);
                     if (firstFiveStops.length > 0) {
                       console.log('First 5 stops with departure counts:');
-                      firstFiveStops.forEach((stop, i) => {
+                      firstFiveStops.forEach((stop: any, i: number) => {
                         console.log(`  ${i+1}. ${stop.stop_name} (${stop.stop_id}): ${stop.departures_count} departures`);
                       });
                     } else {
@@ -473,7 +475,8 @@ export default function AnySpotPage() {
           </div>
         </div>
 
-        {/* Main Content */}
+        {/* Main Content */
+        }
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-16">
           {isLoading && (
             <div className="fixed inset-0 top-16 flex flex-col justify-center items-center">
@@ -484,64 +487,64 @@ export default function AnySpotPage() {
             </div>
           )}
           
-          {/* Results Panel */}
+          {/* Results Panel */
+          }
           {!isLoading && searchResults && (
             <div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-8">Transport</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Spacer size="3xl" />
+              <Spacer size="xl" />
+              <SectionHeader title="Transport" />
+              <Spacer size="xl" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <DataPanel
+                  title="Nearby Stops"
+                  subtitle={`Found ${searchResults.totalCount} stops within 1000m of ${searchResults.formattedAddress}`}
+                  data={searchResults.stops}
+                  totalCount={searchResults.totalCount}
+                  maxDisplay={5}
+                  className="w-full"
+                />
+                {departuresResults && (
                   <DataPanel
-                    title="Nearby Stops"
-                    subtitle={`Found ${searchResults.totalCount} stops within 1000m of ${searchResults.formattedAddress}`}
-                    data={searchResults.stops}
-                    totalCount={searchResults.totalCount}
+                    title="Nearby Stop Times"
+                    subtitle={`Found ${departuresResults.totalDepartures} daily departures from ${departuresResults.totalStops} stops within 1000m (daily average based on schedule data)`}
+                    data={departuresResults.stops.map((stop: any) => ({
+                      ...stop,
+                      formattedDepartures: (
+                        <div className="flex items-center">
+                          <FaBus className="text-blue-600 mr-2" />
+                          <span className="text-lg font-bold text-blue-600">
+                            {stop.departures_count}
+                          </span>
+                        </div>
+                      )
+                    }))}
+                    totalCount={departuresResults.totalStops}
                     maxDisplay={5}
                     className="w-full"
                   />
-                  
-                  {departuresResults && (
-                    <DataPanel
-                      title="Nearby Stop Times"
-                      subtitle={`Found ${departuresResults.totalDepartures} daily departures from ${departuresResults.totalStops} stops within 1000m (daily average based on schedule data)`}
-                      data={departuresResults.stops.map(stop => ({
-                        ...stop,
-                        // Add the bus icon and count as a formatted field for display
-                        formattedDepartures: (
-                          <div className="flex items-center">
-                            <FaBus className="text-blue-600 mr-2" />
-                            <span className="text-lg font-bold text-blue-600">
-                              {stop.departures_count}
-                            </span>
-                          </div>
-                        )
-                      }))}
-                      totalCount={departuresResults.totalStops}
-                      maxDisplay={5}
-                      className="w-full"
-                    />
-                  )}
-                </div>
+                )}
               </div>
-              
-              <div className="mt-24 mb-12">
-                <h2 className="text-2xl font-bold text-gray-900 mb-12">Amenities</h2>
-              </div>
-              
-              <div className="mt-24 mb-12">
-                <h2 className="text-2xl font-bold text-gray-900 mb-12">Safety</h2>
-              </div>
-              
-              <div className="mt-24 mb-12">
-                <h2 className="text-2xl font-bold text-gray-900 mb-12">Education</h2>
-              </div>
-              
-              <div className="mt-24 mb-12">
-                <h2 className="text-2xl font-bold text-gray-900 mb-12">Current Value and Future Value</h2>
-              </div>
-              
-              <div className="mt-24 mb-12">
-                <h2 className="text-2xl font-bold text-gray-900 mb-12">Connectivity</h2>
-              </div>
+
+              <Spacer size="2xl" />
+              <SectionHeader title="Amenities" />
+              <Spacer size="xl" />
+
+              <Spacer size="2xl" />
+              <SectionHeader title="Safety" />
+              <Spacer size="xl" />
+
+              <Spacer size="2xl" />
+              <SectionHeader title="Education" />
+              <Spacer size="xl" />
+
+              <Spacer size="2xl" />
+              <SectionHeader title="Current Value and Future Value" />
+              <Spacer size="xl" />
+
+              <Spacer size="2xl" />
+              <SectionHeader title="Connectivity" />
+              <Spacer size="xl" />
             </div>
           )}
         </div>
