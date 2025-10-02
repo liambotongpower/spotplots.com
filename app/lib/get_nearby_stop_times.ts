@@ -1,5 +1,6 @@
 import connect from './db';
 import { Stop, IStop } from './schema';
+import { getNearbyStops, NearbyStop } from './get_nearby_stops';
 import mongoose from 'mongoose';
 
 // Schema for stop times (corresponds to the stop_times collection)
@@ -15,7 +16,32 @@ interface IStopTime extends mongoose.Document {
   timepoint?: number;
 }
 
-// Define a stop time schema that matches the collection structure
+// Schema for trips (corresponds to the trips collection)
+interface ITrip extends mongoose.Document {
+  route_id: string;
+  service_id: string;
+  trip_id: string;
+  trip_headsign?: string;
+  trip_short_name?: string;
+  direction_id?: number;
+  block_id?: string;
+  shape_id?: string;
+}
+
+// Schema for routes (corresponds to the routes collection)
+interface IRoute extends mongoose.Document {
+  route_id: string;
+  agency_id?: string;
+  route_short_name?: string;
+  route_long_name?: string;
+  route_desc?: string;
+  route_type?: number;
+  route_url?: string;
+  route_color?: string;
+  route_text_color?: string;
+}
+
+// Define schemas that match the collection structures
 const StopTimeSchema = new mongoose.Schema<IStopTime>({
   trip_id: { type: String, required: true },
   arrival_time: { type: String, required: true },
@@ -28,26 +54,49 @@ const StopTimeSchema = new mongoose.Schema<IStopTime>({
   timepoint: { type: Number }
 });
 
-// Create model - check if it exists first to prevent overwriting
+const TripSchema = new mongoose.Schema<ITrip>({
+  route_id: { type: String, required: true, index: true },
+  service_id: { type: String, required: true },
+  trip_id: { type: String, required: true, unique: true },
+  trip_headsign: { type: String },
+  trip_short_name: { type: String },
+  direction_id: { type: Number },
+  block_id: { type: String },
+  shape_id: { type: String }
+});
+
+const RouteSchema = new mongoose.Schema<IRoute>({
+  route_id: { type: String, required: true, unique: true },
+  agency_id: { type: String },
+  route_short_name: { type: String },
+  route_long_name: { type: String },
+  route_desc: { type: String },
+  route_type: { type: Number },
+  route_url: { type: String },
+  route_color: { type: String },
+  route_text_color: { type: String }
+});
+
+// Create models - check if they exist first to prevent overwriting
 export const StopTime = mongoose.models.StopTime || 
   mongoose.model<IStopTime>('StopTime', StopTimeSchema, 'stop_times');
 
-export interface StopWithDepartures {
-  stop_id: string;
-  stop_code: number;
-  stop_name: string;
-  stop_lat: number;
-  stop_lon: number;
-  distance: number;
-  departures_count: number; // Daily average departures
-  total_departures?: number; // Total scheduled departures (for debugging)
-  departure_times?: string[]; // Array of departure times
+export const Trip = mongoose.models.Trip || 
+  mongoose.model<ITrip>('Trip', TripSchema, 'trips');
+
+export const Route = mongoose.models.Route || 
+  mongoose.model<IRoute>('Route', RouteSchema, 'routes');
+
+export interface RouteDeparture {
+  route: string;
+  departures: number;
 }
 
-export interface DeparturesResponse {
-  stops: StopWithDepartures[];
-  totalStops: number;
+export interface RoutesResponse {
+  routes: RouteDeparture[];
+  totalRoutes: number;
   totalDepartures: number;
+  csv: string;
 }
 
 export interface GetNearbyStopTimesOptions {
@@ -58,15 +107,15 @@ export interface GetNearbyStopTimesOptions {
 }
 
 /**
- * Find transport stops and their departure counts within a specified distance
+ * Find routes and their departure counts from the nearest stops
  * @param options - Configuration options for the search
- * @returns Object containing stops with departure counts and totals
+ * @returns Object containing routes with departure counts and CSV output
  */
-export async function getNearbyStopTimes(options: GetNearbyStopTimesOptions): Promise<DeparturesResponse> {
+export async function getNearbyStopTimes(options: GetNearbyStopTimesOptions): Promise<RoutesResponse> {
   const { lat, lng, maxDistance = 1000, limit = 50 } = options;
 
   try {
-    console.log('🔍 [getNearbyStopTimes] Starting search...');
+    console.log('🔍 [getNearbyStopTimes] Starting route-focused search...');
     console.log(`📍 [getNearbyStopTimes] Location: ${lat}, ${lng}`);
     console.log(`📏 [getNearbyStopTimes] Max distance: ${maxDistance}m`);
     console.log(`🔢 [getNearbyStopTimes] Limit: ${limit}`);
@@ -75,252 +124,129 @@ export async function getNearbyStopTimes(options: GetNearbyStopTimesOptions): Pr
     await connect();
     console.log('✅ [getNearbyStopTimes] MongoDB connected successfully');
 
-    // First get the nearby stops using the geospatial query
-    const nearbyStops = await Stop.aggregate([
-      {
-        $geoNear: {
-          near: {
-            type: 'Point' as const,
-            coordinates: [lng, lat] // MongoDB expects [longitude, latitude]
-          },
-          distanceField: 'distance',
-          maxDistance: maxDistance, // in meters
-          spherical: true, // Use spherical geometry for accurate Earth distances
-          query: {}
-        }
-      },
-      {
-        $limit: limit
-      },
-      {
-        $project: {
-          _id: 0,
-          stop_id: 1,
-          stop_code: 1,
-          stop_name: 1,
-          stop_lat: 1,
-          stop_lon: 1,
-          distance: { $round: ['$distance', 2] } // Round distance to 2 decimal places
-        }
-      }
-    ]);
-
+    // Step 1: Get nearby stops using the existing getNearbyStops function
+    console.log('🔍 [getNearbyStopTimes] Step 1: Finding nearby stops...');
+    const nearbyStops = await getNearbyStops({ lat, lng, maxDistance, limit });
     console.log(`✅ [getNearbyStopTimes] Found ${nearbyStops.length} nearby stops`);
 
-    // Get all the stop_ids to use in the lookup
-    const stopIds = nearbyStops.map(stop => stop.stop_id);
-    
-    console.log(`🔍 [getNearbyStopTimes] Looking for stop times for ${stopIds.length} stop IDs`);
-    console.log(`🔍 [getNearbyStopTimes] First 5 stop IDs: ${stopIds.slice(0, 5).join(', ')}`);
-    
-    // Check if StopTime collection exists and has data
-    try {
-      const stopTimesCollectionExists = await StopTime.collection.countDocuments() > 0;
-      console.log(`🔍 [getNearbyStopTimes] StopTime collection exists and has data: ${stopTimesCollectionExists}`);
-      
-      const sampleStopTime = await StopTime.findOne();
-      console.log(`🔍 [getNearbyStopTimes] Sample stop time: ${sampleStopTime ? JSON.stringify(sampleStopTime.toObject()) : 'No stop times found'}`);
-      
-      // Count total documents in StopTime collection
-      const totalStopTimes = await StopTime.countDocuments();
-      console.log(`🔍 [getNearbyStopTimes] Total records in stop_times collection: ${totalStopTimes}`);
-      
-      // Check for any stop times matching our stop IDs directly with find()
-      const sampleMatchingStopTime = await StopTime.findOne({ stop_id: { $in: stopIds.slice(0, 10) } });
-      console.log(`🔍 [getNearbyStopTimes] Sample matching stop time: ${sampleMatchingStopTime ? JSON.stringify(sampleMatchingStopTime.toObject()) : 'No matching stop times found'}`);
-      
-      // If no matches found, check the format of stop IDs in the stop_times collection
-      if (!sampleMatchingStopTime && stopIds.length > 0) {
-        // Get a few sample stop_ids from the stop_times collection
-        const sampleStopTimeIds = await StopTime.distinct('stop_id').limit(5);
-        console.log(`🔍 [getNearbyStopTimes] Sample stop_ids from stop_times collection: ${JSON.stringify(sampleStopTimeIds)}`);
-        console.log(`🔍 [getNearbyStopTimes] Our stop_ids: ${JSON.stringify(stopIds.slice(0, 5))}`);
-      }
-    } catch (err) {
-      console.error('❌ [getNearbyStopTimes] Error checking stop_times collection:', err);
+    if (nearbyStops.length === 0) {
+      return {
+        routes: [],
+        totalRoutes: 0,
+        totalDepartures: 0,
+        csv: 'route,departures\n'
+      };
     }
+
+    // Step 2: For each stop (in distance order), find routes and count departures
+    console.log('🔍 [getNearbyStopTimes] Step 2: Processing stops in distance order...');
     
-    // Count departures for each stop
-    console.log('🔍 [getNearbyStopTimes] Running aggregation to count departures by stop_id...');
-    
-    // First get a count of all stop_times records to understand scale
-    const totalStopTimesRecords = await StopTime.countDocuments();
-    console.log(`🔍 [getNearbyStopTimes] Total stop_times records in database: ${totalStopTimesRecords}`);
-    
-    // Sample some records to understand what we're dealing with
-    const sampleRecords = await StopTime.find().limit(3);
-    console.log('🔍 [getNearbyStopTimes] Sample stop_times records:');
-    sampleRecords.forEach(record => {
-      console.log(JSON.stringify(record.toObject()));
-    });
-    
-    // Count how many records match our stop IDs before grouping
-    const matchCount = await StopTime.countDocuments({ stop_id: { $in: stopIds } });
-    console.log(`🔍 [getNearbyStopTimes] Records matching our ${stopIds.length} stop IDs: ${matchCount}`);
-    
-    // Get counts per stop ID to see distribution
-    console.log('🔍 [getNearbyStopTimes] Investigating why counts might be high...');
-    
-    // The counts are likely high because stop_times contains ALL scheduled departures
-    // Let's examine trips collection to see if we can filter by service days
-    try {
-      const tripCollection = mongoose.connection.db.collection('trips');
-      const tripCount = await tripCollection.countDocuments();
-      console.log(`🔍 [getNearbyStopTimes] Found trips collection with ${tripCount} documents`);
+    const routeDepartures = new Map<string, number>(); // route_id -> daily departures
+    const processedRoutes = new Set<string>(); // Track which routes we've already counted
+
+    for (const stop of nearbyStops) {
+      console.log(`🔍 [getNearbyStopTimes] Processing stop: ${stop.stop_name} (${stop.stop_id})`);
       
-      // Sample a trip to see what data we have
-      if (tripCount > 0) {
-        const sampleTrip = await tripCollection.findOne();
-        console.log(`🔍 [getNearbyStopTimes] Sample trip:`, JSON.stringify(sampleTrip));
-      }
-      
-      // Let's check calendar collection to understand service periods
-      const calendarCollection = mongoose.connection.db.collection('calendar');
-      const calendarCount = await calendarCollection.countDocuments();
-      console.log(`🔍 [getNearbyStopTimes] Found calendar collection with ${calendarCount} documents`);
-      
-      if (calendarCount > 0) {
-        const sampleCalendar = await calendarCollection.findOne();
-        console.log(`🔍 [getNearbyStopTimes] Sample calendar:`, JSON.stringify(sampleCalendar));
-      }
-    } catch (err) {
-      console.log(`🔍 [getNearbyStopTimes] Error investigating related collections:`, err);
-    }
-    
-    // Get counts and actual departure times per stop ID
-    const departuresByStop = await StopTime.aggregate([
-      {
-        $match: { 
-          stop_id: { $in: stopIds } 
+      // Find trips that serve this specific stop
+      const stopTrips = await StopTime.aggregate([
+        {
+          $match: { 
+            stop_id: stop.stop_id 
+          }
+        },
+        {
+          $group: {
+            _id: "$trip_id"
+          }
         }
-      },
-      {
-        $group: {
-          _id: "$stop_id",
-          departures_count: { $sum: 1 },
-          departure_times: { $push: "$departure_time" }  // Collect all departure times
-        }
-      },
-      {
-        $sort: { departures_count: -1 }
+      ]);
+
+      const stopTripIds = stopTrips.map(trip => trip._id);
+      console.log(`🔍 [getNearbyStopTimes] Stop ${stop.stop_id} has ${stopTripIds.length} trips`);
+
+      if (stopTripIds.length === 0) {
+        continue;
       }
-    ]);
-    
-    // Calculate average departures per day to get more meaningful numbers
-    console.log('🔍 [getNearbyStopTimes] Calculating more reasonable departure metrics...');
-    
-    // Assuming the schedule is for a typical week (divide by 7 for daily average)
-    const avgDailyDeparturesByStop = departuresByStop.map(item => ({
-      _id: item._id,
-      departures_count: Math.round(item.departures_count / 7), // Average per day
-      original_count: item.departures_count
-    }));
-    
-    console.log('🔍 [getNearbyStopTimes] Average daily departures for top stops:');
-    avgDailyDeparturesByStop.slice(0, 3).forEach(stop => {
-      console.log(`   - Stop ${stop._id}: ~${stop.departures_count}/day (from ${stop.original_count} total)`);
-    });
-    
-    // Log the top 5 stops by departure count to see if there are outliers
-    if (departuresByStop.length > 0) {
-      console.log('🔍 [getNearbyStopTimes] Top 5 stops by departure count:');
-      departuresByStop.slice(0, 5).forEach(stop => {
-        console.log(`   - Stop ${stop._id}: ${stop.departures_count} departures`);
-      });
-    }
-    
-    console.log(`✅ [getNearbyStopTimes] Counted departures for ${departuresByStop.length} stops`);
-    console.log(`🔍 [getNearbyStopTimes] Raw aggregation results: ${JSON.stringify(departuresByStop)}`);
-    
-    // If we're not finding any departures, try checking if the stop_id format might be different
-    if (departuresByStop.length === 0 && stopIds.length > 0) {
-      console.log('🔍 [getNearbyStopTimes] No departures found with exact stop_id match, checking if format differs...');
-      
-      // Check different stop_id formats
-      const sampleStopId = stopIds[0];
-      console.log(`🔍 [getNearbyStopTimes] Sample stop_id: ${sampleStopId}`);
-      
-      // Try to extract numeric part of stop ID and search with it
-      const numericPart = sampleStopId.replace(/\D/g, '');
-      if (numericPart) {
-        console.log(`🔍 [getNearbyStopTimes] Trying with numeric part: ${numericPart}`);
-        const numericMatches = await StopTime.find({ stop_id: { $regex: numericPart } }).limit(5);
-        console.log(`🔍 [getNearbyStopTimes] Matches with numeric part: ${numericMatches.length}`);
-        if (numericMatches.length > 0) {
-          console.log(`🔍 [getNearbyStopTimes] Example matches: ${JSON.stringify(numericMatches.map(m => m.stop_id))}`);
+
+      // Get route information for these trips
+      const stopRoutes = await Trip.aggregate([
+        {
+          $match: { 
+            trip_id: { $in: stopTripIds } 
+          }
+        },
+        {
+          $lookup: {
+            from: 'routes',
+            localField: 'route_id',
+            foreignField: 'route_id',
+            as: 'route_info'
+          }
+        },
+        {
+          $unwind: {
+            path: '$route_info',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $group: {
+            _id: "$route_id",
+            route_info: { $first: "$route_info" },
+            trip_count: { $sum: 1 }
+          }
         }
-      }
-      
-      // Try a regular expression search to see if the format is different
-      const possibleMatches = await StopTime.find({ stop_id: { $regex: new RegExp(sampleStopId.replace(/[^\w\d]/g, '.*'), 'i') } }).limit(5);
-      console.log(`🔍 [getNearbyStopTimes] Possible matches with regex: ${possibleMatches.length}`);
-      if (possibleMatches.length > 0) {
-        console.log(`🔍 [getNearbyStopTimes] Example matches: ${JSON.stringify(possibleMatches.map(m => m.stop_id))}`);
+      ]);
+
+      // Process routes for this stop
+      for (const route of stopRoutes) {
+        const routeId = route._id;
+        const routeShortName = route.route_info?.route_short_name || routeId;
+        
+        // Only count this route if we haven't seen it before (nearest stop wins)
+        if (!processedRoutes.has(routeId)) {
+          const dailyDepartures = Math.round(route.trip_count / 7); // Average per day
+          routeDepartures.set(routeShortName, dailyDepartures);
+          processedRoutes.add(routeId);
+          
+          console.log(`🔍 [getNearbyStopTimes] Route ${routeShortName} (${routeId}): ${dailyDepartures} daily departures from stop ${stop.stop_id}`);
+        } else {
+          console.log(`🔍 [getNearbyStopTimes] Route ${routeShortName} (${routeId}) already counted from a nearer stop, skipping`);
+        }
       }
     }
 
-    // Calculate average departures per day for more meaningful numbers
-    console.log('🔍 [getNearbyStopTimes] Calculating more reasonable departure metrics...');
+    // Step 3: Convert to final format
+    console.log('🔍 [getNearbyStopTimes] Step 3: Formatting results...');
     
-    // Create maps for departure data
-    const dailyDeparturesMap = new Map();
-    const totalDeparturesMap = new Map();
-    const departureTimesMap = new Map();
-    
-    departuresByStop.forEach(item => {
-      // Store both total and daily average (dividing by 7 for a weekly schedule)
-      const dailyAvg = Math.round(item.departures_count / 7);
-      dailyDeparturesMap.set(item._id, dailyAvg);
-      totalDeparturesMap.set(item._id, item.departures_count);
-      
-      // Process and sort departure times (they might be in HH:MM:SS format)
-      const sortedTimes = [...item.departure_times].sort();
-      departureTimesMap.set(item._id, sortedTimes);
-      
-      // Log sample of departure times for debugging
-      if (item.departure_times.length > 0) {
-        console.log(`🔍 [getNearbyStopTimes] Sample departure times for stop ${item._id}: ${item.departure_times.slice(0, 5).join(', ')}`);
-      }
-    });
-    
-    // Combine the stop information with departure data
-    const stopsWithDepartures: StopWithDepartures[] = nearbyStops.map(stop => ({
-      ...stop,
-      departures_count: dailyDeparturesMap.get(stop.stop_id) || 0,
-      total_departures: totalDeparturesMap.get(stop.stop_id) || 0,
-      departure_times: departureTimesMap.get(stop.stop_id) || []
+    const routes: RouteDeparture[] = Array.from(routeDepartures.entries()).map(([route, departures]) => ({
+      route,
+      departures
     }));
 
-    // Sort by departure count descending
-    stopsWithDepartures.sort((a, b) => b.departures_count - a.departures_count);
+    // Sort by departure count (descending)
+    routes.sort((a, b) => b.departures - a.departures);
 
-    // Calculate the daily average number of departures across all stops
-    const totalDailyDepartures = stopsWithDepartures.reduce(
-      (sum, stop) => sum + stop.departures_count, 
-      0
-    );
-    
-    // Also calculate the total departures across all stops (for debugging)
-    const totalScheduledDepartures = stopsWithDepartures.reduce(
-      (sum, stop) => sum + stop.total_departures, 
-      0
-    );
-    
-    console.log(`🔍 [getNearbyStopTimes] Total daily departures: ${totalDailyDepartures} (average per day)`);
-    console.log(`🔍 [getNearbyStopTimes] Total scheduled departures: ${totalScheduledDepartures} (all schedules)`);
-    console.log(`🔍 [getNearbyStopTimes] Using daily average counts in response`);
-    
-    // Use the daily average for the response
-    const totalDepartures = totalDailyDepartures;
+    // Generate CSV
+    const csvHeader = 'route,departures\n';
+    const csvRows = routes.map(r => `${r.route},${r.departures}`).join('\n');
+    const csv = csvHeader + csvRows;
 
-    console.log(`✅ [getNearbyStopTimes] Total departures across all stops: ${totalDepartures}`);
-    console.log(`✅ [getNearbyStopTimes] Total stops with departure data: ${stopsWithDepartures.length}`);
+    const totalDepartures = routes.reduce((sum, route) => sum + route.departures, 0);
 
-    // Return the combined results
+    console.log(`✅ [getNearbyStopTimes] Summary:`);
+    console.log(`   - Total routes: ${routes.length}`);
+    console.log(`   - Total daily departures: ${totalDepartures}`);
+    console.log(`   - Top 5 routes by departures:`);
+    routes.slice(0, 5).forEach((route, i) => {
+      console.log(`     ${i+1}. ${route.route}: ${route.departures} departures`);
+    });
+
     return {
-      stops: stopsWithDepartures,
-      totalStops: stopsWithDepartures.length,
-      totalDepartures
+      routes,
+      totalRoutes: routes.length,
+      totalDepartures,
+      csv
     };
 
   } catch (error) {
@@ -334,11 +260,11 @@ export async function getNearbyStopTimes(options: GetNearbyStopTimesOptions): Pr
  * Alternative method using manual distance calculation
  * Use this when the geospatial index isn't available
  */
-export async function getNearbyStopTimesManual(options: GetNearbyStopTimesOptions): Promise<DeparturesResponse> {
+export async function getNearbyStopTimesManual(options: GetNearbyStopTimesOptions): Promise<RoutesResponse> {
   const { lat, lng, maxDistance = 1000, limit = 50 } = options;
 
   try {
-    console.log('🔍 [getNearbyStopTimesManual] Starting manual search...');
+    console.log('🔍 [getNearbyStopTimesManual] Starting manual route-focused search...');
     console.log(`📍 [getNearbyStopTimesManual] Location: ${lat}, ${lng}`);
     console.log(`📏 [getNearbyStopTimesManual] Max distance: ${maxDistance}m`);
     
@@ -387,202 +313,119 @@ export async function getNearbyStopTimesManual(options: GetNearbyStopTimesOption
 
     console.log(`✅ [getNearbyStopTimesManual] Found ${sortedStops.length} nearby stops after filtering`);
 
-    // Get stop IDs for departure lookup
-    const stopIds = sortedStops.map(stop => stop.stop_id);
-    
-    console.log(`🔍 [getNearbyStopTimesManual] Looking for stop times for ${stopIds.length} stop IDs`);
-    console.log(`🔍 [getNearbyStopTimesManual] First 5 stop IDs: ${stopIds.slice(0, 5).join(', ')}`);
-    
-    // Check if the StopTime collection exists and has documents
-    try {
-      const stopTimesCollectionExists = await StopTime.collection.countDocuments() > 0;
-      console.log(`🔍 [getNearbyStopTimesManual] StopTime collection exists and has data: ${stopTimesCollectionExists}`);
-      
-      // Check if collection exists in MongoDB
-      const collections = await mongoose.connection.db.listCollections().toArray();
-      const collectionNames = collections.map(c => c.name);
-      console.log(`🔍 [getNearbyStopTimesManual] All collections in database: ${collectionNames.join(', ')}`);
-      
-      if (collectionNames.includes('stop_times')) {
-        // Check for a sample document directly from the collection
-        const sampleDoc = await mongoose.connection.db.collection('stop_times').findOne();
-        console.log(`🔍 [getNearbyStopTimesManual] Raw sample from stop_times collection: ${JSON.stringify(sampleDoc)}`);
-        
-        if (sampleDoc) {
-          console.log(`🔍 [getNearbyStopTimesManual] Sample stop_id format: ${sampleDoc.stop_id} (${typeof sampleDoc.stop_id})`);
-          console.log(`🔍 [getNearbyStopTimesManual] Our stop_id format: ${stopIds[0]} (${typeof stopIds[0]})`);
-          
-          // Get several sample stop_ids to compare formats
-          const sampleStopIds = await mongoose.connection.db.collection('stop_times')
-            .distinct('stop_id', {}, { limit: 5 });
-          console.log(`🔍 [getNearbyStopTimesManual] Sample stop_ids from database: ${JSON.stringify(sampleStopIds)}`);
-          console.log(`🔍 [getNearbyStopTimesManual] Our stop_ids for comparison: ${JSON.stringify(stopIds.slice(0, 5))}`);
-        }
-      }
-    } catch (err) {
-      console.error('❌ [getNearbyStopTimesManual] Error examining database collections:', err);
+    if (sortedStops.length === 0) {
+      return {
+        routes: [],
+        totalRoutes: 0,
+        totalDepartures: 0,
+        csv: 'route,departures\n'
+      };
     }
-    
-    // Count departures for each stop
-    console.log('🔍 [getNearbyStopTimesManual] Running aggregation to count departures...');
-    
-    // Get total count of stop_times records
-    const totalRecords = await StopTime.countDocuments();
-    console.log(`🔍 [getNearbyStopTimesManual] Total records in stop_times collection: ${totalRecords}`);
-    
-    // Check what we're counting - get some samples to analyze
-    console.log('🔍 [getNearbyStopTimesManual] Examining sample stop_times records:');
-    const samples = await StopTime.find().limit(3);
-    if (samples.length > 0) {
-      samples.forEach((sample, idx) => {
-        console.log(`Sample ${idx + 1}:`, JSON.stringify(sample.toObject()));
-      });
+
+    // Process stops in distance order to avoid route duplication
+    const routeDepartures = new Map<string, number>(); // route_id -> daily departures
+    const processedRoutes = new Set<string>(); // Track which routes we've already counted
+
+    for (const stop of sortedStops) {
+      console.log(`🔍 [getNearbyStopTimesManual] Processing stop: ${stop.stop_name} (${stop.stop_id})`);
       
-      // Show what fields are in the data
-      console.log('🔍 [getNearbyStopTimesManual] Fields in stop_times records:', 
-        Object.keys(samples[0].toObject()).join(', '));
-    }
-    
-    // Check how many records match our stop IDs
-    const matchingRecords = await StopTime.countDocuments({ stop_id: { $in: stopIds } });
-    console.log(`🔍 [getNearbyStopTimesManual] Records matching ${stopIds.length} stop IDs: ${matchingRecords}`);
-    
-    // These departures might represent schedules for an entire year!
-    // Let's check how many distinct trips/dates we're counting
-    const distinctTripCount = await StopTime.distinct('trip_id', { stop_id: { $in: stopIds } }).then(trips => trips.length);
-    console.log(`🔍 [getNearbyStopTimesManual] Distinct trips for our stops: ${distinctTripCount}`);
-    
-    // Now run the aggregation with more insight
-    const departuresByStop = await StopTime.aggregate([
-      {
-        $match: { 
-          stop_id: { $in: stopIds } 
-        }
-      },
-      {
-        $group: {
-          _id: "$stop_id",
-          departures_count: { $sum: 1 },
-          departure_times: { $push: "$departure_time" }  // Collect all departure times
-        }
-      },
-      {
-        $sort: { departures_count: -1 }
-      }
-    ]);
-    
-    console.log(`🔍 [getNearbyStopTimesManual] Aggregation results: ${JSON.stringify(departuresByStop)}`);
-    
-    // Try a different approach if no results
-    if (departuresByStop.length === 0) {
-      console.log('🔍 [getNearbyStopTimesManual] No matches found with $in operator, trying direct queries...');
-      
-      // Try to find any stop times for the first stop ID directly
-      if (stopIds.length > 0) {
-        const firstStopId = stopIds[0];
-        const directMatch = await StopTime.find({ stop_id: firstStopId }).limit(1);
-        console.log(`🔍 [getNearbyStopTimesManual] Direct query for stop_id "${firstStopId}" found: ${directMatch.length > 0}`);
-        
-        // Try with just the numeric part
-        const numericPart = firstStopId.replace(/\D/g, '');
-        if (numericPart) {
-          console.log(`🔍 [getNearbyStopTimesManual] Trying with numeric part: ${numericPart}`);
-          const numericMatches = await StopTime.find({ stop_id: { $regex: numericPart } }).limit(5);
-          console.log(`🔍 [getNearbyStopTimesManual] Matches with numeric part: ${numericMatches.length}`);
-          if (numericMatches.length > 0) {
-            console.log(`🔍 [getNearbyStopTimesManual] Example matches: ${JSON.stringify(numericMatches.map(m => m.stop_id))}`);
-            
-            // If we found matches with the numeric part, we might need to map our stop IDs
-            console.log('🔍 [getNearbyStopTimesManual] Trying to aggregate with numeric part pattern...');
-            
-            // Create a map of numeric parts to original stop IDs
-            const numericToOriginal = new Map();
-            stopIds.forEach(id => {
-              const numeric = id.replace(/\D/g, '');
-              if (numeric) {
-                numericToOriginal.set(numeric, id);
-              }
-            });
-            
-            // Try a more flexible match using numeric parts
-            const numericAggregation = await StopTime.aggregate([
-              {
-                $match: {
-                  stop_id: { 
-                    $in: Array.from(numericToOriginal.keys()).map(n => new RegExp(n)) 
-                  }
-                }
-              },
-              {
-                $group: {
-                  _id: "$stop_id",
-                  departures_count: { $sum: 1 }
-                }
-              }
-            ]);
-            
-            console.log(`🔍 [getNearbyStopTimesManual] Numeric aggregation results: ${JSON.stringify(numericAggregation)}`);
+      // Find trips that serve this specific stop
+      const stopTrips = await StopTime.aggregate([
+        {
+          $match: { 
+            stop_id: stop.stop_id 
+          }
+        },
+        {
+          $group: {
+            _id: "$trip_id"
           }
         }
+      ]);
+
+      const stopTripIds = stopTrips.map(trip => trip._id);
+
+      if (stopTripIds.length === 0) {
+        continue;
+      }
+
+      // Get route information for these trips
+      const stopRoutes = await Trip.aggregate([
+        {
+          $match: { 
+            trip_id: { $in: stopTripIds } 
+          }
+        },
+        {
+          $lookup: {
+            from: 'routes',
+            localField: 'route_id',
+            foreignField: 'route_id',
+            as: 'route_info'
+          }
+        },
+        {
+          $unwind: {
+            path: '$route_info',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $group: {
+            _id: "$route_id",
+            route_info: { $first: "$route_info" },
+            trip_count: { $sum: 1 }
+          }
+        }
+      ]);
+
+      // Process routes for this stop
+      for (const route of stopRoutes) {
+        const routeId = route._id;
+        const routeShortName = route.route_info?.route_short_name || routeId;
+        
+        // Only count this route if we haven't seen it before (nearest stop wins)
+        if (!processedRoutes.has(routeId)) {
+          const dailyDepartures = Math.round(route.trip_count / 7); // Average per day
+          routeDepartures.set(routeShortName, dailyDepartures);
+          processedRoutes.add(routeId);
+          
+          console.log(`🔍 [getNearbyStopTimesManual] Route ${routeShortName} (${routeId}): ${dailyDepartures} daily departures from stop ${stop.stop_id}`);
+        } else {
+          console.log(`🔍 [getNearbyStopTimesManual] Route ${routeShortName} (${routeId}) already counted from a nearer stop, skipping`);
+        }
       }
     }
-    
-    // Calculate daily average departures for more meaningful numbers
-    const dailyDeparturesMap = new Map();
-    const totalDeparturesMap = new Map();
-    const departureTimesMap = new Map();
-    
-    departuresByStop.forEach(item => {
-      // Store both total and daily average (dividing by 7 for a weekly schedule)
-      const dailyAvg = Math.round(item.departures_count / 7);
-      dailyDeparturesMap.set(item._id, dailyAvg);
-      totalDeparturesMap.set(item._id, item.departures_count);
-      
-      // Process and sort departure times (they might be in HH:MM:SS format)
-      const sortedTimes = [...item.departure_times].sort();
-      departureTimesMap.set(item._id, sortedTimes);
-      
-      // Log sample of departure times for debugging
-      if (item.departure_times.length > 0) {
-        console.log(`🔍 [getNearbyStopTimesManual] Sample departure times for stop ${item._id}: ${item.departure_times.slice(0, 5).join(', ')}`);
-      }
-    });
-    
-    // Combine stop information with all departure data
-    const stopsWithDepartures: StopWithDepartures[] = sortedStops.map(stop => ({
-      ...stop,
-      departures_count: dailyDeparturesMap.get(stop.stop_id) || 0,
-      total_departures: totalDeparturesMap.get(stop.stop_id) || 0,
-      departure_times: departureTimesMap.get(stop.stop_id) || []
+
+    // Convert to final format
+    const routes: RouteDeparture[] = Array.from(routeDepartures.entries()).map(([route, departures]) => ({
+      route,
+      departures
     }));
 
-    // Sort by departure count descending
-    stopsWithDepartures.sort((a, b) => b.departures_count - a.departures_count);
+    // Sort by departure count (descending)
+    routes.sort((a, b) => b.departures - a.departures);
 
-    // Calculate the daily average departures
-    const totalDailyDepartures = stopsWithDepartures.reduce(
-      (sum, stop) => sum + stop.departures_count, 
-      0
-    );
-    
-    // Also calculate total scheduled departures for debugging
-    const totalScheduledDepartures = stopsWithDepartures.reduce(
-      (sum, stop) => sum + stop.total_departures, 
-      0
-    );
-    
-    console.log(`🔍 [getNearbyStopTimesManual] Total daily departures: ${totalDailyDepartures} (average per day)`);
-    console.log(`🔍 [getNearbyStopTimesManual] Total scheduled departures: ${totalScheduledDepartures} (all schedules)`);
-    
-    // Use the daily average for the response
-    const totalDepartures = totalDailyDepartures;
+    // Generate CSV
+    const csvHeader = 'route,departures\n';
+    const csvRows = routes.map(r => `${r.route},${r.departures}`).join('\n');
+    const csv = csvHeader + csvRows;
 
-    console.log(`✅ [getNearbyStopTimesManual] Total departures: ${totalDepartures}`);
+    const totalDepartures = routes.reduce((sum, route) => sum + route.departures, 0);
+
+    console.log(`✅ [getNearbyStopTimesManual] Summary:`);
+    console.log(`   - Total routes: ${routes.length}`);
+    console.log(`   - Total daily departures: ${totalDepartures}`);
+    console.log(`   - Top 5 routes by departures:`);
+    routes.slice(0, 5).forEach((route, i) => {
+      console.log(`     ${i+1}. ${route.route}: ${route.departures} departures`);
+    });
 
     return {
-      stops: stopsWithDepartures,
-      totalStops: stopsWithDepartures.length,
-      totalDepartures
+      routes,
+      totalRoutes: routes.length,
+      totalDepartures,
+      csv
     };
 
   } catch (error) {

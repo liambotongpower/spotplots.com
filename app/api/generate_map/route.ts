@@ -142,15 +142,15 @@ export async function POST(request: NextRequest) {
                 displayText = '•';
             }
             
-            // Truncate to 3 characters for display
-            const finalText = displayText.length > 3 ? displayText.substring(0, 3) : displayText;
+            // Use the full stop_code without truncation
+            const finalText = displayText;
             
             L.marker([stop.stop_lat, stop.stop_lon], {
                 icon: L.divIcon({
                     className: 'stop-marker',
-                    html: \`<div style="background-color: #3b82f6; color: white; border-radius: 50%; width: 10px; height: 10px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 1px solid white; font-size: 6px;">\${finalText}</div>\`,
-                    iconSize: [10, 10],
-                    iconAnchor: [5, 5]
+                    html: \`<div style="background-color: #3b82f6; color: black; border-radius: 50%; width: 5px; height: 5px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 1px solid white; font-size: 8px;">\${finalText}</div>\`,
+                    iconSize: [5, 5],
+                    iconAnchor: [2.5, 2.5]
                 })
             }).addTo(map);
         });

@@ -73,42 +73,31 @@ export async function GET(request: NextRequest) {
       ? await getNearbyStopTimesManual({ lat, lng, maxDistance, limit })
       : await getNearbyStopTimes({ lat, lng, maxDistance, limit });
 
-    console.log(`✅ API: Found ${result.stops.length} nearby stops with ${result.totalDepartures} total departures`);
+    console.log(`✅ API: Found ${result.totalRoutes} unique routes with ${result.totalDepartures} total daily departures`);
     
-    // Debug stop IDs and departures
-    console.log('🔍 API: First 5 stops with departure counts:');
-    result.stops.slice(0, 5).forEach((stop, idx) => {
-      console.log(`   ${idx+1}. ${stop.stop_name} (ID: ${stop.stop_id}): ${stop.departures_count} departures`);
+    // Debug routes
+    console.log('🔍 API: First 5 routes by departure count:');
+    result.routes.slice(0, 5).forEach((route, idx) => {
+      console.log(`   ${idx+1}. ${route.route}: ${route.departures} daily departures`);
     });
 
     // Log the results to console for debugging
-    if (result.stops.length > 0) {
+    if (result.routes.length > 0) {
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('🚌 NEARBY TRANSPORT STOPS WITH DEPARTURES');
+      console.log('🚌 ROUTES WITH DEPARTURE COUNTS');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      result.stops.forEach((stop, index) => {
-        console.log(`${index + 1}. ${stop.stop_name}`);
-        console.log(`   ID: ${stop.stop_id} | Code: ${stop.stop_code}`);
-        console.log(`   Location: ${stop.stop_lat}, ${stop.stop_lon}`);
-        console.log(`   Distance: ${stop.distance}m`);
-        console.log(`   Departures: ${stop.departures_count}`);
-        console.log('');
+      result.routes.forEach((route, index) => {
+        console.log(`${index + 1}. Route ${route.route}: ${route.departures} daily departures`);
       });
-      console.log(`Total departures within ${maxDistance}m: ${result.totalDepartures}`);
+      console.log(`Total routes within ${maxDistance}m: ${result.totalRoutes}`);
+      console.log(`Total daily departures: ${result.totalDepartures}`);
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     } else {
-      console.log('❌ No stops found within the specified range');
+      console.log('❌ No routes found within the specified range');
     }
 
-    // Extract total scheduled departures for debugging if available
-    const totalScheduledDepartures = result.stops.reduce(
-      (sum, stop) => sum + (stop.total_departures || 0),
-      0
-    );
-    
-    console.log(`⚠️ API: Note that departure counts represent daily averages (total divided by 7)`);
-    console.log(`ℹ️ API: Total scheduled departures across all timetables: ${totalScheduledDepartures}`);
-    console.log(`ℹ️ API: Average daily departures: ${result.totalDepartures}`);
+    console.log(`ℹ️ API: Departure counts represent daily averages (total scheduled departures divided by 7)`);
+    console.log(`ℹ️ API: Total daily departures: ${result.totalDepartures}`);
 
     return NextResponse.json({
       success: true,
@@ -120,14 +109,11 @@ export async function GET(request: NextRequest) {
         method: useManual ? 'manual' : 'geospatial'
       },
       results: {
-        totalStops: result.totalStops,
+        totalRoutes: result.totalRoutes,
         totalDepartures: result.totalDepartures,
-        totalScheduledDepartures: totalScheduledDepartures,
-        note: "Departure counts represent daily averages (total scheduled departures divided by 7)",
-        stops: result.stops.map(stop => ({
-          ...stop,
-          total_departures: undefined  // Remove the debugging field from the response
-        }))
+        routes: result.routes,
+        csv: result.csv,
+        note: "Departure counts represent daily averages (total scheduled departures divided by 7)"
       }
     });
 

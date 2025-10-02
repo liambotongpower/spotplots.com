@@ -348,37 +348,38 @@ export default function AnySpotPage() {
                   const departuresData = await departuresResponse.json();
                   
                   if (departuresResponse.ok && departuresData.success) {
-                    console.log('🚌 TRANSPORT DEPARTURES FOUND:', departuresData.results.totalDepartures);
-                    console.log(`Total stops with departures: ${departuresData.results.totalStops}`);
+                    console.log('🚌 TRANSPORT ROUTES FOUND:', departuresData.results.totalRoutes);
+                    console.log(`Total routes: ${departuresData.results.totalRoutes}`);
+                    console.log(`Total daily departures: ${departuresData.results.totalDepartures}`);
                     
                     // More detailed logging about what we got back
                     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-                    console.log('🔍 DEPARTURES DATA DEBUGGING');
+                    console.log('🔍 ROUTES DATA DEBUGGING');
                     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
                     console.log(`Response status: ${departuresResponse.status}`);
                     console.log(`Success flag: ${departuresData.success}`);
-                    console.log(`Total stops: ${departuresData.results.totalStops}`);
+                    console.log(`Total routes: ${departuresData.results.totalRoutes}`);
                     console.log(`Total departures: ${departuresData.results.totalDepartures}`);
-                    console.log(`Stops array length: ${departuresData.results.stops.length}`);
+                    console.log(`Routes array length: ${departuresData.results.routes.length}`);
                     
-                    // Log the first 5 stops with their departure counts
-                    const firstFiveStops = departuresData.results.stops.slice(0, 5);
-                    if (firstFiveStops.length > 0) {
-                      console.log('First 5 stops with departure counts:');
-                      firstFiveStops.forEach((stop: any, i: number) => {
-                        console.log(`  ${i+1}. ${stop.stop_name} (${stop.stop_id}): ${stop.departures_count} departures`);
+                    // Log the first 5 routes with their departure counts
+                    const firstFiveRoutes = departuresData.results.routes.slice(0, 5);
+                    if (firstFiveRoutes.length > 0) {
+                      console.log('First 5 routes with departure counts:');
+                      firstFiveRoutes.forEach((route: any, i: number) => {
+                        console.log(`  ${i+1}. ${route.route}: ${route.departures} daily departures`);
                       });
                     } else {
-                      console.log('No stops returned in the results');
+                      console.log('No routes returned in the results');
                     }
                     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
                     
-                    // Store departures results
+                    // Store routes results
                     setDeparturesResults({
-                      stops: departuresData.results.stops,
-                      totalStops: departuresData.results.totalStops,
+                      routes: departuresData.results.routes,
+                      totalRoutes: departuresData.results.totalRoutes,
                       totalDepartures: departuresData.results.totalDepartures,
-                      totalScheduledDepartures: departuresData.results.totalScheduledDepartures,
+                      csv: departuresData.results.csv,
                       note: departuresData.results.note
                     });
                   } else {
@@ -491,10 +492,10 @@ export default function AnySpotPage() {
           }
           {!isLoading && searchResults && (
             <div>
-              <Spacer size="lg" />
+              <Spacer size="md" />
               <SectionHeader title="Transport" />
-              <Spacer size="lg" />
-              <div className="flex flex-col gap-8">
+              <Spacer size="md" />
+              <div className="flex flex-col gap-4">
                 <DataPanel
                   title="Nearby Stops"
                   subtitle={`Found ${searchResults.totalCount} stops within 1000m of ${searchResults.formattedAddress}`}
@@ -507,45 +508,38 @@ export default function AnySpotPage() {
                 />
                 {departuresResults && (
                   <DataPanel
-                    title="Nearby Stop Times"
-                    subtitle={`Found ${departuresResults.totalDepartures} daily departures from ${departuresResults.totalStops} stops within 1000m (daily average based on schedule data)`}
-                    data={departuresResults.stops.map((stop: any) => ({
-                      ...stop,
-                      formattedDepartures: (
-                        <div className="flex items-center">
-                          <FaBus className="text-blue-600 mr-2" />
-                          <span className="text-lg font-bold text-blue-600">
-                            {stop.departures_count}
-                          </span>
-                        </div>
-                      )
+                    title="Nearby Routes"
+                    subtitle={`Found ${departuresResults.totalRoutes} unique routes with ${departuresResults.totalDepartures} daily departures within 1000m (daily average based on schedule data)`}
+                    data={departuresResults.routes.map((route: any) => ({
+                      route: route.route,
+                      departures: route.departures
                     }))}
-                    totalCount={departuresResults.totalStops}
-                    maxDisplay={5}
+                    totalCount={departuresResults.totalRoutes}
+                    maxDisplay={10}
                     className="w-full"
                   />
                 )}
               </div>
 
-              <Spacer size="2xl" />
+              <Spacer size="xl" />
               <SectionHeader title="Amenities" />
-              <Spacer size="xl" />
+              <Spacer size="lg" />
 
-              <Spacer size="2xl" />
+              <Spacer size="xl" />
               <SectionHeader title="Safety" />
-              <Spacer size="xl" />
+              <Spacer size="lg" />
 
-              <Spacer size="2xl" />
+              <Spacer size="xl" />
               <SectionHeader title="Education" />
-              <Spacer size="xl" />
+              <Spacer size="lg" />
 
-              <Spacer size="2xl" />
+              <Spacer size="xl" />
               <SectionHeader title="Current Value and Future Value" />
-              <Spacer size="xl" />
+              <Spacer size="lg" />
 
-              <Spacer size="2xl" />
-              <SectionHeader title="Connectivity" />
               <Spacer size="xl" />
+              <SectionHeader title="Connectivity" />
+              <Spacer size="lg" />
             </div>
           )}
         </div>
