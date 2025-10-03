@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getNearbyStopTimes, getNearbyStopTimesManual } from '../../lib/get_nearby_stop_times';
+import { getNearbyStopTimes, getNearbyStopTimesManual, getNearbyStopTimesFromStops } from '../../lib/get_nearby_stop_times';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -130,13 +130,98 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// POST endpoint for optimized route finding using pre-found stops
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { stops } = body;
+
+    if (!stops || !Array.isArray(stops)) {
+      return NextResponse.json(
+        { error: 'Stops array is required in request body' },
+        { status: 400 }
+      );
+    }
+
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🚀 API: OPTIMIZED route search from pre-found stops...');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(`📍 API: Processing ${stops.length} pre-found stops`);
+
+    console.log('🔍 API: Database connection information:');
+    try {
+      const mongoose = (await import('mongoose')).default;
+      console.log(`🔍 API: Mongoose readyState: ${mongoose.connection.readyState}`);
+      console.log(`🔍 API: Connected to: ${mongoose.connection.host}:${mongoose.connection.port}/${mongoose.connection.name}`);
+    } catch (err) {
+      console.error('❌ API: Error checking mongoose connection:', err);
+    }
+    
+    // Call the optimized function
+    console.log(`🔍 API: Calling getNearbyStopTimesFromStops function...`);
+    const result = await getNearbyStopTimesFromStops({ stops });
+
+    console.log(`✅ API: Found ${result.totalRoutes} unique routes with ${result.totalDepartures} total daily departures`);
+    
+    // Debug routes
+    console.log('🔍 API: First 5 routes by departure count:');
+    result.routes.slice(0, 5).forEach((route, idx) => {
+      console.log(`   ${idx+1}. ${route.route}: ${route.departures} daily departures`);
+    });
+
+    // Log the results to console for debugging
+    if (result.routes.length > 0) {
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('🚌 OPTIMIZED ROUTES WITH DEPARTURE COUNTS');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      result.routes.forEach((route, index) => {
+        console.log(`${index + 1}. Route ${route.route}: ${route.departures} daily departures`);
+      });
+      console.log(`Total routes: ${result.totalRoutes}`);
+      console.log(`Total daily departures: ${result.totalDepartures}`);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    } else {
+      console.log('❌ No routes found');
+    }
+
+    console.log(`ℹ️ API: Departure counts represent daily averages (total scheduled departures divided by 7)`);
+    console.log(`ℹ️ API: Total daily departures: ${result.totalDepartures}`);
+
+    return NextResponse.json({
+      success: true,
+      query: {
+        method: 'optimized',
+        stopsCount: stops.length
+      },
+      results: {
+        totalRoutes: result.totalRoutes,
+        totalDepartures: result.totalDepartures,
+        routes: result.routes,
+        csv: result.csv,
+        note: "Departure counts represent daily averages (total scheduled departures divided by 7)"
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error in optimized route search:', error);
+    
+    return NextResponse.json(
+      { 
+        error: 'Failed to fetch nearby stop times from stops',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    );
+  }
+}
+
 // Handle OPTIONS request for CORS
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
     headers: {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
     },
   });

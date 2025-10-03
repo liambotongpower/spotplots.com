@@ -340,11 +340,17 @@ export default function AnySpotPage() {
                 // Move to next task - getting departures
                 setCurrentTask(1);
                 
-                // Now get transport departures
+                // Now get transport departures using the OPTIMIZED method
                 try {
-                  const departuresResponse = await fetch(
-                    `/api/get_nearby_stop_times?lat=${geocodeData.coordinates.lat}&lng=${geocodeData.coordinates.lng}&maxDistance=1000&limit=1000&useManual=true`
-                  );
+                  const departuresResponse = await fetch('/api/get_nearby_routes', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      stops: stopsData.results.stops
+                    })
+                  });
                   const departuresData = await departuresResponse.json();
                   
                   if (departuresResponse.ok && departuresData.success) {
@@ -354,10 +360,12 @@ export default function AnySpotPage() {
                     
                     // More detailed logging about what we got back
                     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-                    console.log('🔍 ROUTES DATA DEBUGGING');
+                    console.log('🚀 OPTIMIZED ROUTES DATA DEBUGGING - v2');
                     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
                     console.log(`Response status: ${departuresResponse.status}`);
                     console.log(`Success flag: ${departuresData.success}`);
+                    console.log(`Method: ${departuresData.query.method}`);
+                    console.log(`Stops processed: ${departuresData.query.stopsCount}`);
                     console.log(`Total routes: ${departuresData.results.totalRoutes}`);
                     console.log(`Total departures: ${departuresData.results.totalDepartures}`);
                     console.log(`Routes array length: ${departuresData.results.routes.length}`);
@@ -375,13 +383,15 @@ export default function AnySpotPage() {
                     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
                     
                     // Store routes results
-                    setDeparturesResults({
+                    const routesData = {
                       routes: departuresData.results.routes,
                       totalRoutes: departuresData.results.totalRoutes,
                       totalDepartures: departuresData.results.totalDepartures,
                       csv: departuresData.results.csv,
                       note: departuresData.results.note
-                    });
+                    };
+                    console.log('🔍 Setting departuresResults:', routesData);
+                    setDeparturesResults(routesData);
                   } else {
                     console.error('Failed to find transport departures:', departuresData.error);
                     console.error('Response status:', departuresResponse.status);

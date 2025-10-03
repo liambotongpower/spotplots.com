@@ -204,10 +204,13 @@ export default function DataPanel({
       const url = URL.createObjectURL(blob);
       
       const timestamp = new Date().toISOString().split('T')[0];
-      const filename = `transport-routes-chart-${timestamp}.png`;
+      const totalCharts = Math.ceil(data.length / 20);
+      const filename = totalCharts > 1 
+        ? `transport-routes-charts-${totalCharts}-charts-${timestamp}.svg`
+        : `transport-routes-chart-${timestamp}.svg`;
       
       downloadImage(url, filename);
-      console.log('📊 Transport routes chart downloaded');
+      console.log(`📊 Transport routes chart${totalCharts > 1 ? 's' : ''} downloaded (${totalCharts} chart${totalCharts > 1 ? 's' : ''})`);
     } catch (error) {
       console.error('Error generating chart:', error);
     }

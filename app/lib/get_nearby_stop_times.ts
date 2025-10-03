@@ -106,6 +106,17 @@ export interface GetNearbyStopTimesOptions {
   limit?: number; // max number of results, defaults to 50
 }
 
+export interface GetNearbyStopTimesFromStopsOptions {
+  stops: Array<{
+    stop_id: string;
+    stop_code: number;
+    stop_name: string;
+    stop_lat: number;
+    stop_lon: number;
+    distance: number;
+  }>;
+}
+
 /**
  * Find routes and their departure counts from the nearest stops
  * @param options - Configuration options for the search
@@ -432,6 +443,177 @@ export async function getNearbyStopTimesManual(options: GetNearbyStopTimesOption
     console.error('❌ [getNearbyStopTimesManual] Error finding nearby stop times (manual):', error);
     console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
     throw new Error('Failed to find nearby stop times');
+  }
+}
+
+/**
+ * OPTIMIZED: Find routes and their departure counts from pre-found stops
+ * This eliminates the wasteful re-finding of stops that were already discovered
+ * @param options - Configuration options with pre-found stops
+ * @returns Object containing routes with departure counts and CSV output
+ */
+export async function getNearbyStopTimesFromStops(options: GetNearbyStopTimesFromStopsOptions): Promise<RoutesResponse> {
+  const { stops } = options;
+
+  try {
+    console.log('🔍 Fetching nearby routes...');
+
+    // Connect to MongoDB
+    await connect();
+
+    if (stops.length === 0) {
+      return {
+        routes: [],
+        totalRoutes: 0,
+        totalDepartures: 0,
+        csv: 'route,departures\n'
+      };
+    }
+
+    // Process stops in distance order (they should already be sorted, but ensure it)
+    const sortedStops = [...stops].sort((a, b) => a.distance - b.distance);
+
+    const routeDepartures = new Map<string, number>(); // route_id -> daily departures
+    const processedRoutes = new Set<string>(); // Track which routes we've already counted
+
+    // OPTIMIZED: Batch all stop IDs and do one big query instead of 174 separate queries
+    const stopIds = sortedStops.map(stop => stop.stop_id);
+    
+    // Get all trips for all stops in one query
+    const allStopTrips = await StopTime.aggregate([
+      {
+        $match: { 
+          stop_id: { $in: stopIds }
+        }
+      },
+      {
+        $group: {
+          _id: "$stop_id",
+          trip_ids: { $addToSet: "$trip_id" }
+        }
+      }
+    ]);
+
+    // Create a map of stop_id -> trip_ids for quick lookup
+    const stopTripsMap = new Map();
+    allStopTrips.forEach(stop => {
+      stopTripsMap.set(stop._id, stop.trip_ids);
+    });
+
+    // Get all unique trip IDs across all stops
+    const allTripIds = [...new Set(allStopTrips.flatMap(stop => stop.trip_ids))];
+
+    // Get all route information for all trips in one query
+    const allRoutes = await Trip.aggregate([
+      {
+        $match: { 
+          trip_id: { $in: allTripIds } 
+        }
+      },
+      {
+        $lookup: {
+          from: 'routes',
+          localField: 'route_id',
+          foreignField: 'route_id',
+          as: 'route_info'
+        }
+      },
+      {
+        $unwind: {
+          path: '$route_info',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $group: {
+          _id: "$route_id",
+          route_info: { $first: "$route_info" },
+          trip_ids: { $addToSet: "$trip_id" }
+        }
+      }
+    ]);
+
+    // Create a map of trip_id -> route_id for quick lookup
+    const tripRouteMap = new Map();
+    allRoutes.forEach(route => {
+      route.trip_ids.forEach(tripId => {
+        tripRouteMap.set(tripId, route._id);
+      });
+    });
+
+    // Process stops in distance order to avoid route duplication (nearest stop wins)
+    for (const stop of sortedStops) {
+      const stopTripIds = stopTripsMap.get(stop.stop_id) || [];
+
+      if (stopTripIds.length === 0) {
+        continue;
+      }
+
+      // Count routes for this stop
+      const routeCounts = new Map();
+      stopTripIds.forEach(tripId => {
+        const routeId = tripRouteMap.get(tripId);
+        if (routeId) {
+          routeCounts.set(routeId, (routeCounts.get(routeId) || 0) + 1);
+        }
+      });
+
+      // Process routes for this stop
+      for (const [routeId, tripCount] of routeCounts) {
+        const route = allRoutes.find(r => r._id === routeId);
+        const routeShortName = route?.route_info?.route_short_name || routeId;
+        
+        // Only count this route if we haven't seen it before (nearest stop wins)
+        if (!processedRoutes.has(routeId)) {
+          const dailyDepartures = Math.round(tripCount / 7); // Average per day
+          routeDepartures.set(routeShortName, dailyDepartures);
+          processedRoutes.add(routeId);
+          
+          console.log(`✅ [getNearbyStopTimesFromStops] Route ${routeShortName} (${routeId}): ${dailyDepartures} daily departures from nearest stop ${stop.stop_id}`);
+        } else {
+          console.log(`⏭️ [getNearbyStopTimesFromStops] Route ${routeShortName} (${routeId}) already counted from a nearer stop, skipping`);
+        }
+      }
+    }
+
+    // Convert to final format
+    console.log('🔍 [getNearbyStopTimesFromStops] Formatting results...');
+    
+    const routes: RouteDeparture[] = Array.from(routeDepartures.entries()).map(([route, departures]) => ({
+      route,
+      departures
+    }));
+
+    // Sort by departure count (descending)
+    routes.sort((a, b) => b.departures - a.departures);
+
+    // Generate CSV
+    const csvHeader = 'route,departures\n';
+    const csvRows = routes.map(r => `${r.route},${r.departures}`).join('\n');
+    const csv = csvHeader + csvRows;
+
+    const totalDepartures = routes.reduce((sum, route) => sum + route.departures, 0);
+
+    console.log(`✅ [getNearbyStopTimesFromStops] OPTIMIZED Summary:`);
+    console.log(`   - Processed ${sortedStops.length} pre-found stops`);
+    console.log(`   - Total routes: ${routes.length}`);
+    console.log(`   - Total daily departures: ${totalDepartures}`);
+    console.log(`   - Top 5 routes by departures:`);
+    routes.slice(0, 5).forEach((route, i) => {
+      console.log(`     ${i+1}. ${route.route}: ${route.departures} departures`);
+    });
+
+    return {
+      routes,
+      totalRoutes: routes.length,
+      totalDepartures,
+      csv
+    };
+
+  } catch (error) {
+    console.error('❌ [getNearbyStopTimesFromStops] Error finding nearby stop times from stops:', error);
+    console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
+    throw new Error('Failed to find nearby stop times from stops');
   }
 }
 
