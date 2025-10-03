@@ -469,6 +469,7 @@ export default function AnySpotPage() {
                   className="w-full"
                   userLocation={searchResults.coordinates}
                   address={searchResults.formattedAddress}
+                  score={85}
                 />
                 {departuresResults && (
                   <DataPanel
@@ -481,6 +482,7 @@ export default function AnySpotPage() {
                     totalCount={departuresResults.totalRoutes}
                     maxDisplay={10}
                     className="w-full"
+                    score={92}
                   />
                 )}
               </div>

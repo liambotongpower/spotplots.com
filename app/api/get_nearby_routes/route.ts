@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getNearbyStopTimes, getNearbyStopTimesManual, getNearbyStopTimesFromStops } from '../../lib/get_nearby_stop_times';
+import { getNearbyStopTimes, getNearbyStopTimesManual, getNearbyStopTimesFromStops } from '../../lib/get_nearby_routes';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);

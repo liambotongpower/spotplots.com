@@ -9,6 +9,7 @@ interface DataPanelProps {
   className?: string;
   userLocation?: { lat: number; lng: number };
   address?: string;
+  score?: number;
 }
 
 // Utility function to convert data to CSV format
@@ -73,10 +74,25 @@ export default function DataPanel({
   maxDisplay = 5,
   className = "",
   userLocation,
-  address
+  address,
+  score
 }: DataPanelProps) {
   const displayData = data.slice(0, maxDisplay);
   const remainingCount = totalCount ? totalCount - maxDisplay : 0;
+
+  // Function to get score color based on percentage
+  const getScoreColor = (score: number) => {
+    if (score >= 0 && score <= 16) {
+      return 'text-red-800'; // Dark Red
+    } else if (score > 16 && score <= 50) {
+      return 'text-orange-600'; // Orange
+    } else if (score > 50 && score <= 84) {
+      return 'text-yellow-600'; // Yellowy Green
+    } else if (score > 84 && score <= 100) {
+      return 'text-green-500'; // Bright Green
+    }
+    return 'text-gray-900'; // Default fallback
+  };
 
   // Check if this is a stop times panel
   const isStopTimesPanel = title === "Nearby Stop Times";
@@ -228,9 +244,16 @@ export default function DataPanel({
     <div className={`bg-white rounded-lg shadow-lg border border-gray-200 py-4 px-6 my-6 ${className}`}>
       <div className="mb-4">
         <div className="flex items-center justify-between mb-1">
-          <h2 className="text-2xl font-bold text-gray-900">
-            {title}
-          </h2>
+          <div className="flex items-center gap-3">
+            {score !== undefined && (
+              <span className="text-2xl font-bold text-gray-900">
+                {score}
+              </span>
+            )}
+            <h2 className="text-2xl font-bold text-gray-900">
+              {title}
+            </h2>
+          </div>
           {data && data.length > 0 && (
             <div className="flex items-center gap-2">
               {/* Download Insights Button */}
