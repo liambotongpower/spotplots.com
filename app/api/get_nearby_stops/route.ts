@@ -50,39 +50,14 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('🚌 API: Searching for nearby stops...');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log(`📍 API: Location: ${lat}, ${lng}`);
-    console.log(`📏 API: Max distance: ${maxDistance}m`);
-    console.log(`🔢 API: Limit: ${limit} results`);
-    console.log(`⚙️ API: Method: ${useManual ? 'Manual calculation' : 'MongoDB geospatial'}`);
-    console.log(`🌐 API: Full URL: ${request.url}`);
-    console.log(`🔍 API: Search params: ${JSON.stringify(Object.fromEntries(searchParams))}`);
+    console.log(`🔍 Searching for nearby stops: ${lat}, ${lng} (${maxDistance}m)`);
 
     // Call the appropriate function based on the useManual parameter
     const stops = useManual 
       ? await getNearbyStopsManual({ lat, lng, maxDistance, limit })
       : await getNearbyStops({ lat, lng, maxDistance, limit });
 
-    console.log(`✅ API: Found ${stops.length} nearby stops`);
-
-    // Log the results to console for debugging
-    if (stops.length > 0) {
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('🚌 NEARBY TRANSPORT STOPS');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      stops.forEach((stop, index) => {
-        console.log(`${index + 1}. ${stop.stop_name}`);
-        console.log(`   ID: ${stop.stop_id} | Code: ${stop.stop_code}`);
-        console.log(`   Location: ${stop.stop_lat}, ${stop.stop_lon}`);
-        console.log(`   Distance: ${stop.distance}m`);
-        console.log('');
-      });
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    } else {
-      console.log('❌ No stops found within the specified range');
-    }
+    console.log(`✅ Found ${stops.length} nearby stops`);
 
     return NextResponse.json({
       success: true,

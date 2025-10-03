@@ -311,22 +311,6 @@ export default function AnySpotPage() {
               const stopsData = await stopsResponse.json();
               
               if (stopsResponse.ok && stopsData.success) {
-                console.log('🚌 NEARBY STOPS FOUND:', stopsData.results.count);
-                console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-                
-                // Show only top 5 stops
-                const topStops = stopsData.results.stops.slice(0, 5);
-                topStops.forEach((stop: any, index: number) => {
-                  console.log(`${index + 1}. ${stop.stop_name}`);
-                  console.log(`   Distance: ${stop.distance}m`);
-                  console.log(`   ID: ${stop.stop_id}`);
-                });
-                
-                if (stopsData.results.count > 5) {
-                  console.log(`... and ${stopsData.results.count - 5} more stops`);
-                }
-                
-                console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
                 
                 // Store results
                 setSearchResults({
@@ -354,44 +338,14 @@ export default function AnySpotPage() {
                   const departuresData = await departuresResponse.json();
                   
                   if (departuresResponse.ok && departuresData.success) {
-                    console.log('🚌 TRANSPORT ROUTES FOUND:', departuresData.results.totalRoutes);
-                    console.log(`Total routes: ${departuresData.results.totalRoutes}`);
-                    console.log(`Total daily departures: ${departuresData.results.totalDepartures}`);
-                    
-                    // More detailed logging about what we got back
-                    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-                    console.log('🚀 OPTIMIZED ROUTES DATA DEBUGGING - v2');
-                    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-                    console.log(`Response status: ${departuresResponse.status}`);
-                    console.log(`Success flag: ${departuresData.success}`);
-                    console.log(`Method: ${departuresData.query.method}`);
-                    console.log(`Stops processed: ${departuresData.query.stopsCount}`);
-                    console.log(`Total routes: ${departuresData.results.totalRoutes}`);
-                    console.log(`Total departures: ${departuresData.results.totalDepartures}`);
-                    console.log(`Routes array length: ${departuresData.results.routes.length}`);
-                    
-                    // Log the first 5 routes with their departure counts
-                    const firstFiveRoutes = departuresData.results.routes.slice(0, 5);
-                    if (firstFiveRoutes.length > 0) {
-                      console.log('First 5 routes with departure counts:');
-                      firstFiveRoutes.forEach((route: any, i: number) => {
-                        console.log(`  ${i+1}. ${route.route}: ${route.departures} daily departures`);
-                      });
-                    } else {
-                      console.log('No routes returned in the results');
-                    }
-                    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-                    
                     // Store routes results
-                    const routesData = {
+                    setDeparturesResults({
                       routes: departuresData.results.routes,
                       totalRoutes: departuresData.results.totalRoutes,
                       totalDepartures: departuresData.results.totalDepartures,
                       csv: departuresData.results.csv,
                       note: departuresData.results.note
-                    };
-                    console.log('🔍 Setting departuresResults:', routesData);
-                    setDeparturesResults(routesData);
+                    });
                   } else {
                     console.error('Failed to find transport departures:', departuresData.error);
                     console.error('Response status:', departuresResponse.status);

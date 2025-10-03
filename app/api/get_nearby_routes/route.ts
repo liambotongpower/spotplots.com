@@ -50,54 +50,14 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('🚌 API: Searching for nearby stop times...');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log(`📍 API: Location: ${lat}, ${lng}`);
-    console.log(`📏 API: Max distance: ${maxDistance}m`);
-    console.log(`🔢 API: Limit: ${limit} results`);
-    console.log(`⚙️ API: Method: ${useManual ? 'Manual calculation' : 'MongoDB geospatial'}`);
-
-    console.log('🔍 API: Database connection information:');
-    try {
-      const mongoose = (await import('mongoose')).default;
-      console.log(`🔍 API: Mongoose readyState: ${mongoose.connection.readyState}`);
-      console.log(`🔍 API: Connected to: ${mongoose.connection.host}:${mongoose.connection.port}/${mongoose.connection.name}`);
-    } catch (err) {
-      console.error('❌ API: Error checking mongoose connection:', err);
-    }
+    console.log(`🔍 Searching for nearby routes: ${lat}, ${lng} (${maxDistance}m)`);
     
     // Call the appropriate function based on the useManual parameter
-    console.log(`🔍 API: Calling ${useManual ? 'getNearbyStopTimesManual' : 'getNearbyStopTimes'} function...`);
     const result = useManual 
       ? await getNearbyStopTimesManual({ lat, lng, maxDistance, limit })
       : await getNearbyStopTimes({ lat, lng, maxDistance, limit });
 
-    console.log(`✅ API: Found ${result.totalRoutes} unique routes with ${result.totalDepartures} total daily departures`);
-    
-    // Debug routes
-    console.log('🔍 API: First 5 routes by departure count:');
-    result.routes.slice(0, 5).forEach((route, idx) => {
-      console.log(`   ${idx+1}. ${route.route}: ${route.departures} daily departures`);
-    });
-
-    // Log the results to console for debugging
-    if (result.routes.length > 0) {
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('🚌 ROUTES WITH DEPARTURE COUNTS');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      result.routes.forEach((route, index) => {
-        console.log(`${index + 1}. Route ${route.route}: ${route.departures} daily departures`);
-      });
-      console.log(`Total routes within ${maxDistance}m: ${result.totalRoutes}`);
-      console.log(`Total daily departures: ${result.totalDepartures}`);
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    } else {
-      console.log('❌ No routes found within the specified range');
-    }
-
-    console.log(`ℹ️ API: Departure counts represent daily averages (total scheduled departures divided by 7)`);
-    console.log(`ℹ️ API: Total daily departures: ${result.totalDepartures}`);
+    console.log(`✅ Found ${result.totalRoutes} routes with ${result.totalDepartures} daily departures`);
 
     return NextResponse.json({
       success: true,
@@ -143,49 +103,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('🚀 API: OPTIMIZED route search from pre-found stops...');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log(`📍 API: Processing ${stops.length} pre-found stops`);
-
-    console.log('🔍 API: Database connection information:');
-    try {
-      const mongoose = (await import('mongoose')).default;
-      console.log(`🔍 API: Mongoose readyState: ${mongoose.connection.readyState}`);
-      console.log(`🔍 API: Connected to: ${mongoose.connection.host}:${mongoose.connection.port}/${mongoose.connection.name}`);
-    } catch (err) {
-      console.error('❌ API: Error checking mongoose connection:', err);
-    }
-    
     // Call the optimized function
-    console.log(`🔍 API: Calling getNearbyStopTimesFromStops function...`);
     const result = await getNearbyStopTimesFromStops({ stops });
-
-    console.log(`✅ API: Found ${result.totalRoutes} unique routes with ${result.totalDepartures} total daily departures`);
-    
-    // Debug routes
-    console.log('🔍 API: First 5 routes by departure count:');
-    result.routes.slice(0, 5).forEach((route, idx) => {
-      console.log(`   ${idx+1}. ${route.route}: ${route.departures} daily departures`);
-    });
-
-    // Log the results to console for debugging
-    if (result.routes.length > 0) {
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('🚌 OPTIMIZED ROUTES WITH DEPARTURE COUNTS');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      result.routes.forEach((route, index) => {
-        console.log(`${index + 1}. Route ${route.route}: ${route.departures} daily departures`);
-      });
-      console.log(`Total routes: ${result.totalRoutes}`);
-      console.log(`Total daily departures: ${result.totalDepartures}`);
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    } else {
-      console.log('❌ No routes found');
-    }
-
-    console.log(`ℹ️ API: Departure counts represent daily averages (total scheduled departures divided by 7)`);
-    console.log(`ℹ️ API: Total daily departures: ${result.totalDepartures}`);
 
     return NextResponse.json({
       success: true,

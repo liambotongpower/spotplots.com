@@ -41,7 +41,7 @@ interface IRoute extends mongoose.Document {
   route_text_color?: string;
 }
 
-// Define schemas that match the collection structures
+// Define schemas that match the collection structures with optimized indexes
 const StopTimeSchema = new mongoose.Schema<IStopTime>({
   trip_id: { type: String, required: true },
   arrival_time: { type: String, required: true },
@@ -54,6 +54,9 @@ const StopTimeSchema = new mongoose.Schema<IStopTime>({
   timepoint: { type: Number }
 });
 
+// Add compound indexes for optimal query performance
+StopTimeSchema.index({ stop_id: 1, trip_id: 1 }, { name: 'stop_times_stop_trip_compound' });
+
 const TripSchema = new mongoose.Schema<ITrip>({
   route_id: { type: String, required: true, index: true },
   service_id: { type: String, required: true },
@@ -64,6 +67,9 @@ const TripSchema = new mongoose.Schema<ITrip>({
   block_id: { type: String },
   shape_id: { type: String }
 });
+
+// Add compound indexes for optimal query performance
+TripSchema.index({ trip_id: 1, route_id: 1 }, { name: 'trips_trip_route_compound' });
 
 const RouteSchema = new mongoose.Schema<IRoute>({
   route_id: { type: String, required: true, unique: true },
@@ -76,6 +82,9 @@ const RouteSchema = new mongoose.Schema<IRoute>({
   route_color: { type: String },
   route_text_color: { type: String }
 });
+
+// Add index for route_id lookups
+RouteSchema.index({ route_id: 1 }, { name: 'routes_route_id' });
 
 // Create models - check if they exist first to prevent overwriting
 export const StopTime = mongoose.models.StopTime || 
@@ -126,19 +135,11 @@ export async function getNearbyStopTimes(options: GetNearbyStopTimesOptions): Pr
   const { lat, lng, maxDistance = 1000, limit = 50 } = options;
 
   try {
-    console.log('🔍 [getNearbyStopTimes] Starting route-focused search...');
-    console.log(`📍 [getNearbyStopTimes] Location: ${lat}, ${lng}`);
-    console.log(`📏 [getNearbyStopTimes] Max distance: ${maxDistance}m`);
-    console.log(`🔢 [getNearbyStopTimes] Limit: ${limit}`);
-
     // Connect to MongoDB
     await connect();
-    console.log('✅ [getNearbyStopTimes] MongoDB connected successfully');
 
     // Step 1: Get nearby stops using the existing getNearbyStops function
-    console.log('🔍 [getNearbyStopTimes] Step 1: Finding nearby stops...');
     const nearbyStops = await getNearbyStops({ lat, lng, maxDistance, limit });
-    console.log(`✅ [getNearbyStopTimes] Found ${nearbyStops.length} nearby stops`);
 
     if (nearbyStops.length === 0) {
       return {
@@ -149,87 +150,107 @@ export async function getNearbyStopTimes(options: GetNearbyStopTimesOptions): Pr
       };
     }
 
-    // Step 2: For each stop (in distance order), find routes and count departures
-    console.log('🔍 [getNearbyStopTimes] Step 2: Processing stops in distance order...');
-    
+    // Step 2: OPTIMIZED - Batch process all stops using compound indexes
     const routeDepartures = new Map<string, number>(); // route_id -> daily departures
     const processedRoutes = new Set<string>(); // Track which routes we've already counted
 
-    for (const stop of nearbyStops) {
-      console.log(`🔍 [getNearbyStopTimes] Processing stop: ${stop.stop_name} (${stop.stop_id})`);
-      
-      // Find trips that serve this specific stop
-      const stopTrips = await StopTime.aggregate([
-        {
-          $match: { 
-            stop_id: stop.stop_id 
-          }
-        },
-        {
-          $group: {
-            _id: "$trip_id"
-          }
-        }
-      ]);
+    // OPTIMIZATION: Get all stop IDs at once for batch processing
+    const stopIds = nearbyStops.map(stop => stop.stop_id);
 
-      const stopTripIds = stopTrips.map(trip => trip._id);
-      console.log(`🔍 [getNearbyStopTimes] Stop ${stop.stop_id} has ${stopTripIds.length} trips`);
+    // OPTIMIZATION: Single query to get all trips for all stops using compound index
+    const allStopTrips = await StopTime.aggregate([
+      {
+        $match: { 
+          stop_id: { $in: stopIds } // Uses compound index: stop_id + trip_id
+        }
+      },
+      {
+        $group: {
+          _id: "$stop_id",
+          trip_ids: { $addToSet: "$trip_id" }
+        }
+      }
+    ]);
+
+    // Create a map of stop_id -> trip_ids for quick lookup
+    const stopTripsMap = new Map();
+    allStopTrips.forEach(stop => {
+      stopTripsMap.set(stop._id, stop.trip_ids);
+    });
+
+    // OPTIMIZATION: Get all unique trip IDs across all stops
+    const allTripIds = [...new Set(allStopTrips.flatMap(stop => stop.trip_ids))];
+
+    // OPTIMIZATION: Single query to get all route information using compound index
+    const allRoutes = await Trip.aggregate([
+      {
+        $match: { 
+          trip_id: { $in: allTripIds } // Uses compound index: trip_id + route_id
+        }
+      },
+      {
+        $lookup: {
+          from: 'routes',
+          localField: 'route_id',
+          foreignField: 'route_id', // Uses routes index
+          as: 'route_info'
+        }
+      },
+      {
+        $unwind: {
+          path: '$route_info',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $group: {
+          _id: "$route_id",
+          route_info: { $first: "$route_info" },
+          trip_ids: { $addToSet: "$trip_id" }
+        }
+      }
+    ]);
+
+    // Create a map of trip_id -> route_id for quick lookup
+    const tripRouteMap = new Map();
+    allRoutes.forEach(route => {
+      route.trip_ids.forEach(tripId => {
+        tripRouteMap.set(tripId, route._id);
+      });
+    });
+
+    // Process stops in distance order to avoid route duplication (nearest stop wins)
+    for (const stop of nearbyStops) {
+      const stopTripIds = stopTripsMap.get(stop.stop_id) || [];
 
       if (stopTripIds.length === 0) {
         continue;
       }
 
-      // Get route information for these trips
-      const stopRoutes = await Trip.aggregate([
-        {
-          $match: { 
-            trip_id: { $in: stopTripIds } 
-          }
-        },
-        {
-          $lookup: {
-            from: 'routes',
-            localField: 'route_id',
-            foreignField: 'route_id',
-            as: 'route_info'
-          }
-        },
-        {
-          $unwind: {
-            path: '$route_info',
-            preserveNullAndEmptyArrays: true
-          }
-        },
-        {
-          $group: {
-            _id: "$route_id",
-            route_info: { $first: "$route_info" },
-            trip_count: { $sum: 1 }
-          }
+      // Count routes for this stop using the pre-built maps
+      const routeCounts = new Map();
+      stopTripIds.forEach(tripId => {
+        const routeId = tripRouteMap.get(tripId);
+        if (routeId) {
+          routeCounts.set(routeId, (routeCounts.get(routeId) || 0) + 1);
         }
-      ]);
+      });
 
       // Process routes for this stop
-      for (const route of stopRoutes) {
-        const routeId = route._id;
-        const routeShortName = route.route_info?.route_short_name || routeId;
+      for (const [routeId, tripCount] of routeCounts) {
+        const route = allRoutes.find(r => r._id === routeId);
+        const routeShortName = route?.route_info?.route_short_name || routeId;
         
         // Only count this route if we haven't seen it before (nearest stop wins)
         if (!processedRoutes.has(routeId)) {
-          const dailyDepartures = Math.round(route.trip_count / 7); // Average per day
+          const dailyDepartures = Math.round(tripCount / 7); // Average per day
           routeDepartures.set(routeShortName, dailyDepartures);
           processedRoutes.add(routeId);
-          
-          console.log(`🔍 [getNearbyStopTimes] Route ${routeShortName} (${routeId}): ${dailyDepartures} daily departures from stop ${stop.stop_id}`);
-        } else {
-          console.log(`🔍 [getNearbyStopTimes] Route ${routeShortName} (${routeId}) already counted from a nearer stop, skipping`);
         }
       }
     }
 
     // Step 3: Convert to final format
-    console.log('🔍 [getNearbyStopTimes] Step 3: Formatting results...');
-    
     const routes: RouteDeparture[] = Array.from(routeDepartures.entries()).map(([route, departures]) => ({
       route,
       departures
@@ -244,14 +265,6 @@ export async function getNearbyStopTimes(options: GetNearbyStopTimesOptions): Pr
     const csv = csvHeader + csvRows;
 
     const totalDepartures = routes.reduce((sum, route) => sum + route.departures, 0);
-
-    console.log(`✅ [getNearbyStopTimes] Summary:`);
-    console.log(`   - Total routes: ${routes.length}`);
-    console.log(`   - Total daily departures: ${totalDepartures}`);
-    console.log(`   - Top 5 routes by departures:`);
-    routes.slice(0, 5).forEach((route, i) => {
-      console.log(`     ${i+1}. ${route.route}: ${route.departures} departures`);
-    });
 
     return {
       routes,
@@ -333,71 +346,105 @@ export async function getNearbyStopTimesManual(options: GetNearbyStopTimesOption
       };
     }
 
-    // Process stops in distance order to avoid route duplication
+    // OPTIMIZED: Batch process all stops using compound indexes
     const routeDepartures = new Map<string, number>(); // route_id -> daily departures
     const processedRoutes = new Set<string>(); // Track which routes we've already counted
 
+    // OPTIMIZATION: Get all stop IDs at once for batch processing
+    const stopIds = sortedStops.map(stop => stop.stop_id);
+    console.log(`🔍 [getNearbyStopTimesManual] Processing ${stopIds.length} stops in batch`);
+
+    // OPTIMIZATION: Single query to get all trips for all stops using compound index
+    const allStopTrips = await StopTime.aggregate([
+      {
+        $match: { 
+          stop_id: { $in: stopIds } // Uses compound index: stop_id + trip_id
+        }
+      },
+      {
+        $group: {
+          _id: "$stop_id",
+          trip_ids: { $addToSet: "$trip_id" }
+        }
+      }
+    ]);
+
+    // Create a map of stop_id -> trip_ids for quick lookup
+    const stopTripsMap = new Map();
+    allStopTrips.forEach(stop => {
+      stopTripsMap.set(stop._id, stop.trip_ids);
+    });
+
+    // OPTIMIZATION: Get all unique trip IDs across all stops
+    const allTripIds = [...new Set(allStopTrips.flatMap(stop => stop.trip_ids))];
+    console.log(`🔍 [getNearbyStopTimesManual] Found ${allTripIds.length} unique trips across all stops`);
+
+    // OPTIMIZATION: Single query to get all route information using compound index
+    const allRoutes = await Trip.aggregate([
+      {
+        $match: { 
+          trip_id: { $in: allTripIds } // Uses compound index: trip_id + route_id
+        }
+      },
+      {
+        $lookup: {
+          from: 'routes',
+          localField: 'route_id',
+          foreignField: 'route_id', // Uses routes index
+          as: 'route_info'
+        }
+      },
+      {
+        $unwind: {
+          path: '$route_info',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $group: {
+          _id: "$route_id",
+          route_info: { $first: "$route_info" },
+          trip_ids: { $addToSet: "$trip_id" }
+        }
+      }
+    ]);
+
+    // Create a map of trip_id -> route_id for quick lookup
+    const tripRouteMap = new Map();
+    allRoutes.forEach(route => {
+      route.trip_ids.forEach(tripId => {
+        tripRouteMap.set(tripId, route._id);
+      });
+    });
+
+    // Process stops in distance order to avoid route duplication (nearest stop wins)
     for (const stop of sortedStops) {
       console.log(`🔍 [getNearbyStopTimesManual] Processing stop: ${stop.stop_name} (${stop.stop_id})`);
       
-      // Find trips that serve this specific stop
-      const stopTrips = await StopTime.aggregate([
-        {
-          $match: { 
-            stop_id: stop.stop_id 
-          }
-        },
-        {
-          $group: {
-            _id: "$trip_id"
-          }
-        }
-      ]);
-
-      const stopTripIds = stopTrips.map(trip => trip._id);
+      const stopTripIds = stopTripsMap.get(stop.stop_id) || [];
+      console.log(`🔍 [getNearbyStopTimesManual] Stop ${stop.stop_id} has ${stopTripIds.length} trips`);
 
       if (stopTripIds.length === 0) {
         continue;
       }
 
-      // Get route information for these trips
-      const stopRoutes = await Trip.aggregate([
-        {
-          $match: { 
-            trip_id: { $in: stopTripIds } 
-          }
-        },
-        {
-          $lookup: {
-            from: 'routes',
-            localField: 'route_id',
-            foreignField: 'route_id',
-            as: 'route_info'
-          }
-        },
-        {
-          $unwind: {
-            path: '$route_info',
-            preserveNullAndEmptyArrays: true
-          }
-        },
-        {
-          $group: {
-            _id: "$route_id",
-            route_info: { $first: "$route_info" },
-            trip_count: { $sum: 1 }
-          }
+      // Count routes for this stop using the pre-built maps
+      const routeCounts = new Map();
+      stopTripIds.forEach(tripId => {
+        const routeId = tripRouteMap.get(tripId);
+        if (routeId) {
+          routeCounts.set(routeId, (routeCounts.get(routeId) || 0) + 1);
         }
-      ]);
+      });
 
       // Process routes for this stop
-      for (const route of stopRoutes) {
-        const routeId = route._id;
-        const routeShortName = route.route_info?.route_short_name || routeId;
+      for (const [routeId, tripCount] of routeCounts) {
+        const route = allRoutes.find(r => r._id === routeId);
+        const routeShortName = route?.route_info?.route_short_name || routeId;
         
         // Only count this route if we haven't seen it before (nearest stop wins)
         if (!processedRoutes.has(routeId)) {
-          const dailyDepartures = Math.round(route.trip_count / 7); // Average per day
+          const dailyDepartures = Math.round(tripCount / 7); // Average per day
           routeDepartures.set(routeShortName, dailyDepartures);
           processedRoutes.add(routeId);
           
@@ -568,17 +615,11 @@ export async function getNearbyStopTimesFromStops(options: GetNearbyStopTimesFro
           const dailyDepartures = Math.round(tripCount / 7); // Average per day
           routeDepartures.set(routeShortName, dailyDepartures);
           processedRoutes.add(routeId);
-          
-          console.log(`✅ [getNearbyStopTimesFromStops] Route ${routeShortName} (${routeId}): ${dailyDepartures} daily departures from nearest stop ${stop.stop_id}`);
-        } else {
-          console.log(`⏭️ [getNearbyStopTimesFromStops] Route ${routeShortName} (${routeId}) already counted from a nearer stop, skipping`);
         }
       }
     }
 
     // Convert to final format
-    console.log('🔍 [getNearbyStopTimesFromStops] Formatting results...');
-    
     const routes: RouteDeparture[] = Array.from(routeDepartures.entries()).map(([route, departures]) => ({
       route,
       departures
@@ -594,15 +635,6 @@ export async function getNearbyStopTimesFromStops(options: GetNearbyStopTimesFro
 
     const totalDepartures = routes.reduce((sum, route) => sum + route.departures, 0);
 
-    console.log(`✅ [getNearbyStopTimesFromStops] OPTIMIZED Summary:`);
-    console.log(`   - Processed ${sortedStops.length} pre-found stops`);
-    console.log(`   - Total routes: ${routes.length}`);
-    console.log(`   - Total daily departures: ${totalDepartures}`);
-    console.log(`   - Top 5 routes by departures:`);
-    routes.slice(0, 5).forEach((route, i) => {
-      console.log(`     ${i+1}. ${route.route}: ${route.departures} departures`);
-    });
-
     return {
       routes,
       totalRoutes: routes.length,
@@ -611,9 +643,8 @@ export async function getNearbyStopTimesFromStops(options: GetNearbyStopTimesFro
     };
 
   } catch (error) {
-    console.error('❌ [getNearbyStopTimesFromStops] Error finding nearby stop times from stops:', error);
-    console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
-    throw new Error('Failed to find nearby stop times from stops');
+    console.error('❌ Error finding nearby routes:', error);
+    throw new Error('Failed to find nearby routes');
   }
 }
 
