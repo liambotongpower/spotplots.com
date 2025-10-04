@@ -605,6 +605,7 @@ export default function AnySpotPage() {
                     totalCount={departuresResults.totalRoutes}
                     maxDisplay={10}
                     className="w-full"
+                    address={searchResults.formattedAddress}
                     score={92}
                   />
                 )}

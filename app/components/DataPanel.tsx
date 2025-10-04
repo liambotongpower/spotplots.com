@@ -255,7 +255,7 @@ export default function DataPanel({
         padding: 24px;
         border-radius: 8px;
         box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-        max-width: 500px;
+        max-width: 672px;
         text-align: center;
         font-family: system-ui, -apple-system, sans-serif;
       `;
@@ -264,17 +264,56 @@ export default function DataPanel({
         <p style="margin: 0 0 16px 0; font-size: 16px; line-height: 1.5; color: #000000;">
           ${address} is in the ${score}th percentile based on analysis of 3,123 electoral divisions across Ireland.
         </p>
-        <button style="
-          background: #2563eb;
-          color: white;
-          border: none;
-          padding: 8px 16px;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 14px;
-        " onclick="this.closest('div').parentElement.remove()">
-          OK
-        </button>
+        <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.4; color: #555555; font-style: italic;">
+          This means this location has better transport connectivity than ${score}% of all electoral divisions in Ireland, with higher percentiles indicating better transport access.
+        </p>
+        <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.4; color: #666666;">
+          Source 1: <a href="https://data.gov.ie/dataset/realtime-passenger-information-gtfsr" target="_blank" style="color: #2563eb; text-decoration: underline;">https://data.gov.ie/dataset/realtime-passenger-information-gtfsr</a>
+        </p>
+        <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.4; color: #666666;">
+          Source 2: <a href="https://data.cso.ie/table/F1011" target="_blank" style="color: #2563eb; text-decoration: underline;">https://data.cso.ie/table/F1011</a>
+        </p>
+        <div style="display: flex; gap: 12px; justify-content: center;">
+          <button style="
+            background: #6b7280;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+          " onclick="
+            const text = '${address} is in the ${score}th percentile based on analysis of 3,123 electoral divisions across Ireland.\n\nThis means this location has better transport connectivity than ${score}% of all electoral divisions in Ireland, with higher percentiles indicating better transport access.\n\nSources: https://data.gov.ie/dataset/realtime-passenger-information-gtfsr, https://data.cso.ie/table/F1011';
+            navigator.clipboard.writeText(text).then(() => {
+              this.textContent = 'Copied!';
+              this.style.background = '#16a34a';
+              setTimeout(() => {
+                this.textContent = 'Copy';
+                this.style.background = '#6b7280';
+              }, 1500);
+            }).catch(() => {
+              this.textContent = 'Failed';
+              this.style.background = '#dc2626';
+              setTimeout(() => {
+                this.textContent = 'Copy';
+                this.style.background = '#6b7280';
+              }, 1500);
+            });
+          ">
+            Copy
+          </button>
+          <button style="
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+          " onclick="this.closest('div').parentElement.remove()">
+            OK
+          </button>
+        </div>
       `;
       
       modal.appendChild(content);
@@ -308,7 +347,7 @@ export default function DataPanel({
         padding: 24px;
         border-radius: 8px;
         box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-        max-width: 500px;
+        max-width: 672px;
         text-align: center;
         font-family: system-ui, -apple-system, sans-serif;
       `;
@@ -317,17 +356,56 @@ export default function DataPanel({
         <p style="margin: 0 0 16px 0; font-size: 16px; line-height: 1.5; color: #000000;">
           ${address} is in the ${score}th percentile based on analysis of 3,123 electoral divisions across Ireland.
         </p>
-        <button style="
-          background: #2563eb;
-          color: white;
-          border: none;
-          padding: 8px 16px;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 14px;
-        " onclick="this.closest('div').parentElement.remove()">
-          OK
-        </button>
+        <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.4; color: #555555; font-style: italic;">
+          This means this location has better transport connectivity than ${score}% of all electoral divisions in Ireland, with higher percentiles indicating better transport access.
+        </p>
+        <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.4; color: #666666;">
+          Source 1: <a href="https://data.gov.ie/dataset/realtime-passenger-information-gtfsr" target="_blank" style="color: #2563eb; text-decoration: underline;">https://data.gov.ie/dataset/realtime-passenger-information-gtfsr</a>
+        </p>
+        <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.4; color: #666666;">
+          Source 2: <a href="https://data.cso.ie/table/F1011" target="_blank" style="color: #2563eb; text-decoration: underline;">https://data.cso.ie/table/F1011</a>
+        </p>
+        <div style="display: flex; gap: 12px; justify-content: center;">
+          <button style="
+            background: #6b7280;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+          " onclick="
+            const text = '${address} is in the ${score}th percentile based on analysis of 3,123 electoral divisions across Ireland.\n\nThis means this location has better transport connectivity than ${score}% of all electoral divisions in Ireland, with higher percentiles indicating better transport access.\n\nSources: https://data.gov.ie/dataset/realtime-passenger-information-gtfsr, https://data.cso.ie/table/F1011';
+            navigator.clipboard.writeText(text).then(() => {
+              this.textContent = 'Copied!';
+              this.style.background = '#16a34a';
+              setTimeout(() => {
+                this.textContent = 'Copy';
+                this.style.background = '#6b7280';
+              }, 1500);
+            }).catch(() => {
+              this.textContent = 'Failed';
+              this.style.background = '#dc2626';
+              setTimeout(() => {
+                this.textContent = 'Copy';
+                this.style.background = '#6b7280';
+              }, 1500);
+            });
+          ">
+            Copy
+          </button>
+          <button style="
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+          " onclick="this.closest('div').parentElement.remove()">
+            OK
+          </button>
+        </div>
       `;
       
       modal.appendChild(content);
