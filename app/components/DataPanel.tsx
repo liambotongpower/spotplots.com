@@ -274,7 +274,7 @@ export default function DataPanel({
           Source 2: <a href="https://data.cso.ie/table/F1011" target="_blank" style="color: #2563eb; text-decoration: underline;">https://data.cso.ie/table/F1011</a>
         </p>
         <div style="display: flex; gap: 12px; justify-content: center;">
-          <button style="
+          <button id="copy-btn" style="
             background: #6b7280;
             color: white;
             border: none;
@@ -282,27 +282,10 @@ export default function DataPanel({
             border-radius: 4px;
             cursor: pointer;
             font-size: 14px;
-          " onclick="
-            const text = '${address} is in the ${score}th percentile based on analysis of 3,123 electoral divisions across Ireland.\n\nThis means this location has better transport connectivity than ${score}% of all electoral divisions in Ireland, with higher percentiles indicating better transport access.\n\nSources: https://data.gov.ie/dataset/realtime-passenger-information-gtfsr, https://data.cso.ie/table/F1011';
-            navigator.clipboard.writeText(text).then(() => {
-              this.textContent = 'Copied!';
-              this.style.background = '#16a34a';
-              setTimeout(() => {
-                this.textContent = 'Copy';
-                this.style.background = '#6b7280';
-              }, 1500);
-            }).catch(() => {
-              this.textContent = 'Failed';
-              this.style.background = '#dc2626';
-              setTimeout(() => {
-                this.textContent = 'Copy';
-                this.style.background = '#6b7280';
-              }, 1500);
-            });
           ">
             Copy
           </button>
-          <button style="
+          <button id="ok-btn" style="
             background: #2563eb;
             color: white;
             border: none;
@@ -310,7 +293,7 @@ export default function DataPanel({
             border-radius: 4px;
             cursor: pointer;
             font-size: 14px;
-          " onclick="this.closest('div').parentElement.remove()">
+          ">
             OK
           </button>
         </div>
@@ -318,6 +301,37 @@ export default function DataPanel({
       
       modal.appendChild(content);
       document.body.appendChild(modal);
+      
+      // Add event listeners for buttons
+      const copyBtn = content.querySelector('#copy-btn');
+      const okBtn = content.querySelector('#ok-btn');
+      
+      if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+          const text = `${address} is in the ${score}th percentile based on analysis of 3,123 electoral divisions across Ireland. This means this location has better transport connectivity than ${score}% of all electoral divisions in Ireland, with higher percentiles indicating better transport access. Sources: https://data.gov.ie/dataset/realtime-passenger-information-gtfsr, https://data.cso.ie/table/F1011`;
+          navigator.clipboard.writeText(text).then(() => {
+            (copyBtn as HTMLButtonElement).textContent = 'Copied!';
+            (copyBtn as HTMLButtonElement).style.background = '#16a34a';
+            setTimeout(() => {
+              (copyBtn as HTMLButtonElement).textContent = 'Copy';
+              (copyBtn as HTMLButtonElement).style.background = '#6b7280';
+            }, 1500);
+          }).catch(() => {
+            (copyBtn as HTMLButtonElement).textContent = 'Failed';
+            (copyBtn as HTMLButtonElement).style.background = '#dc2626';
+            setTimeout(() => {
+              (copyBtn as HTMLButtonElement).textContent = 'Copy';
+              (copyBtn as HTMLButtonElement).style.background = '#6b7280';
+            }, 1500);
+          });
+        });
+      }
+      
+      if (okBtn) {
+        okBtn.addEventListener('click', () => {
+          modal.remove();
+        });
+      }
       
       // Close on background click
       modal.addEventListener('click', (e) => {
@@ -366,7 +380,7 @@ export default function DataPanel({
           Source 2: <a href="https://data.cso.ie/table/F1011" target="_blank" style="color: #2563eb; text-decoration: underline;">https://data.cso.ie/table/F1011</a>
         </p>
         <div style="display: flex; gap: 12px; justify-content: center;">
-          <button style="
+          <button id="copy-btn-routes" style="
             background: #6b7280;
             color: white;
             border: none;
@@ -374,27 +388,10 @@ export default function DataPanel({
             border-radius: 4px;
             cursor: pointer;
             font-size: 14px;
-          " onclick="
-            const text = '${address} is in the ${score}th percentile based on analysis of 3,123 electoral divisions across Ireland.\n\nThis means this location has better transport connectivity than ${score}% of all electoral divisions in Ireland, with higher percentiles indicating better transport access.\n\nSources: https://data.gov.ie/dataset/realtime-passenger-information-gtfsr, https://data.cso.ie/table/F1011';
-            navigator.clipboard.writeText(text).then(() => {
-              this.textContent = 'Copied!';
-              this.style.background = '#16a34a';
-              setTimeout(() => {
-                this.textContent = 'Copy';
-                this.style.background = '#6b7280';
-              }, 1500);
-            }).catch(() => {
-              this.textContent = 'Failed';
-              this.style.background = '#dc2626';
-              setTimeout(() => {
-                this.textContent = 'Copy';
-                this.style.background = '#6b7280';
-              }, 1500);
-            });
           ">
             Copy
           </button>
-          <button style="
+          <button id="ok-btn-routes" style="
             background: #2563eb;
             color: white;
             border: none;
@@ -402,7 +399,7 @@ export default function DataPanel({
             border-radius: 4px;
             cursor: pointer;
             font-size: 14px;
-          " onclick="this.closest('div').parentElement.remove()">
+          ">
             OK
           </button>
         </div>
@@ -410,6 +407,37 @@ export default function DataPanel({
       
       modal.appendChild(content);
       document.body.appendChild(modal);
+      
+      // Add event listeners for buttons
+      const copyBtn = content.querySelector('#copy-btn-routes');
+      const okBtn = content.querySelector('#ok-btn-routes');
+      
+      if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+          const text = `${address} is in the ${score}th percentile based on analysis of 3,123 electoral divisions across Ireland. This means this location has better transport connectivity than ${score}% of all electoral divisions in Ireland, with higher percentiles indicating better transport access. Sources: https://data.gov.ie/dataset/realtime-passenger-information-gtfsr, https://data.cso.ie/table/F1011`;
+          navigator.clipboard.writeText(text).then(() => {
+            (copyBtn as HTMLButtonElement).textContent = 'Copied!';
+            (copyBtn as HTMLButtonElement).style.background = '#16a34a';
+            setTimeout(() => {
+              (copyBtn as HTMLButtonElement).textContent = 'Copy';
+              (copyBtn as HTMLButtonElement).style.background = '#6b7280';
+            }, 1500);
+          }).catch(() => {
+            (copyBtn as HTMLButtonElement).textContent = 'Failed';
+            (copyBtn as HTMLButtonElement).style.background = '#dc2626';
+            setTimeout(() => {
+              (copyBtn as HTMLButtonElement).textContent = 'Copy';
+              (copyBtn as HTMLButtonElement).style.background = '#6b7280';
+            }, 1500);
+          });
+        });
+      }
+      
+      if (okBtn) {
+        okBtn.addEventListener('click', () => {
+          modal.remove();
+        });
+      }
       
       // Close on background click
       modal.addEventListener('click', (e) => {

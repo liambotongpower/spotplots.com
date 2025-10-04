@@ -38,3 +38,5 @@ next-env.d.ts
 # environment variables
 .env
 daftlistings.csv
+
+datasets
