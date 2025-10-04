@@ -68,8 +68,8 @@ function getConnectionOptions() {
     minPoolSize: isProduction ? 5 : 3,          // Keep more connections ready
     maxIdleTimeMS: isProduction ? 60000 : 30000, // Keep connections longer in production
     
-    // Timeout optimizations for faster response
-    serverSelectionTimeoutMS: 2000,             // Faster server selection
+    // Smart timeout strategy - balance between speed and reliability
+    serverSelectionTimeoutMS: 5000,             // Reasonable timeout for most connections
     socketTimeoutMS: isProduction ? 30000 : 45000, // Shorter timeout in production
     connectTimeoutMS: 5000,                     // Faster initial connection
     
@@ -87,6 +87,38 @@ function getConnectionOptions() {
     // Heartbeat settings for connection health
     heartbeatFrequencyMS: 10000,                // Check connection health every 10s
   };
+}
+
+// Intelligent retry function with exponential backoff
+async function connectWithRetry(uri: string, options: any, maxRetries: number): Promise<typeof mongoose> {
+  let lastError: Error;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // Increase timeout progressively for retries
+      const retryOptions = {
+        ...options,
+        serverSelectionTimeoutMS: options.serverSelectionTimeoutMS * attempt
+      };
+      
+      if (attempt > 1) {
+        console.log(`🔄 Retry attempt ${attempt}/${maxRetries} (timeout: ${retryOptions.serverSelectionTimeoutMS}ms)`);
+      }
+      
+      return await mongoose.connect(uri, retryOptions);
+    } catch (error) {
+      lastError = error as Error;
+      
+      if (attempt < maxRetries) {
+        // Exponential backoff: wait 1s, 2s, 4s...
+        const delay = Math.pow(2, attempt - 1) * 1000;
+        console.log(`⏳ Waiting ${delay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  throw lastError!;
 }
 
 async function connect() {
@@ -119,7 +151,7 @@ async function connect() {
     
     console.log('🔗 Connecting to MongoDB...');
     
-    cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
+    cached.promise = connectWithRetry(MONGODB_URI!, opts, 3).then((mongoose) => {
       console.log('✅ MongoDB connected');
       
       // Set up connection event listeners for monitoring

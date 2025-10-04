@@ -140,6 +140,109 @@ export default function AnySpotPage() {
     'Getting nearby stops',
     'Getting transport departures'
   ], []);
+
+  // Stop count percentiles data for comparison
+  const stopPercentiles = useMemo(() => [
+    { percentile: 1, stop_count: 0 },
+    { percentile: 2, stop_count: 0 },
+    { percentile: 3, stop_count: 0 },
+    { percentile: 4, stop_count: 0 },
+    { percentile: 5, stop_count: 0 },
+    { percentile: 6, stop_count: 0 },
+    { percentile: 7, stop_count: 0 },
+    { percentile: 8, stop_count: 0 },
+    { percentile: 9, stop_count: 0 },
+    { percentile: 10, stop_count: 0 },
+    { percentile: 11, stop_count: 0 },
+    { percentile: 12, stop_count: 0 },
+    { percentile: 13, stop_count: 0 },
+    { percentile: 14, stop_count: 0 },
+    { percentile: 15, stop_count: 0 },
+    { percentile: 16, stop_count: 0 },
+    { percentile: 17, stop_count: 0 },
+    { percentile: 18, stop_count: 0 },
+    { percentile: 19, stop_count: 0 },
+    { percentile: 20, stop_count: 0 },
+    { percentile: 21, stop_count: 0 },
+    { percentile: 22, stop_count: 0 },
+    { percentile: 23, stop_count: 0 },
+    { percentile: 24, stop_count: 0 },
+    { percentile: 25, stop_count: 0 },
+    { percentile: 26, stop_count: 0 },
+    { percentile: 27, stop_count: 0 },
+    { percentile: 28, stop_count: 0 },
+    { percentile: 29, stop_count: 0 },
+    { percentile: 30, stop_count: 0 },
+    { percentile: 31, stop_count: 0 },
+    { percentile: 32, stop_count: 0 },
+    { percentile: 33, stop_count: 0 },
+    { percentile: 34, stop_count: 0 },
+    { percentile: 35, stop_count: 0 },
+    { percentile: 36, stop_count: 0 },
+    { percentile: 37, stop_count: 0 },
+    { percentile: 38, stop_count: 0 },
+    { percentile: 39, stop_count: 0 },
+    { percentile: 40, stop_count: 0 },
+    { percentile: 41, stop_count: 0 },
+    { percentile: 42, stop_count: 0 },
+    { percentile: 43, stop_count: 0 },
+    { percentile: 44, stop_count: 0 },
+    { percentile: 45, stop_count: 0 },
+    { percentile: 46, stop_count: 0 },
+    { percentile: 47, stop_count: 0 },
+    { percentile: 48, stop_count: 0 },
+    { percentile: 49, stop_count: 0 },
+    { percentile: 50, stop_count: 0 },
+    { percentile: 51, stop_count: 0 },
+    { percentile: 52, stop_count: 0 },
+    { percentile: 53, stop_count: 0 },
+    { percentile: 54, stop_count: 0 },
+    { percentile: 55, stop_count: 0 },
+    { percentile: 56, stop_count: 0 },
+    { percentile: 57, stop_count: 0 },
+    { percentile: 58, stop_count: 0 },
+    { percentile: 59, stop_count: 0 },
+    { percentile: 60, stop_count: 0 },
+    { percentile: 61, stop_count: 0 },
+    { percentile: 62, stop_count: 0 },
+    { percentile: 63, stop_count: 0 },
+    { percentile: 64, stop_count: 0 },
+    { percentile: 65, stop_count: 1 },
+    { percentile: 66, stop_count: 1 },
+    { percentile: 67, stop_count: 2 },
+    { percentile: 68, stop_count: 2 },
+    { percentile: 69, stop_count: 2 },
+    { percentile: 70, stop_count: 2 },
+    { percentile: 71, stop_count: 2 },
+    { percentile: 72, stop_count: 2 },
+    { percentile: 73, stop_count: 2 },
+    { percentile: 74, stop_count: 2 },
+    { percentile: 75, stop_count: 2 },
+    { percentile: 76, stop_count: 2 },
+    { percentile: 77, stop_count: 2 },
+    { percentile: 78, stop_count: 2 },
+    { percentile: 79, stop_count: 2 },
+    { percentile: 80, stop_count: 3 },
+    { percentile: 81, stop_count: 3 },
+    { percentile: 82, stop_count: 4 },
+    { percentile: 83, stop_count: 5 },
+    { percentile: 84, stop_count: 5 },
+    { percentile: 85, stop_count: 8 },
+    { percentile: 86, stop_count: 10 },
+    { percentile: 87, stop_count: 15 },
+    { percentile: 88, stop_count: 20 },
+    { percentile: 89, stop_count: 25 },
+    { percentile: 90, stop_count: 29 },
+    { percentile: 91, stop_count: 33 },
+    { percentile: 92, stop_count: 35 },
+    { percentile: 93, stop_count: 39 },
+    { percentile: 94, stop_count: 43 },
+    { percentile: 95, stop_count: 46 },
+    { percentile: 96, stop_count: 50 },
+    { percentile: 97, stop_count: 50 },
+    { percentile: 98, stop_count: 50 },
+    { percentile: 99, stop_count: 50 }
+  ], []);
   
   const phrases = useMemo(() => [
     'Dublin',
@@ -172,6 +275,26 @@ export default function AnySpotPage() {
   const [recognition, setRecognition] = useState<any>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  // Function to calculate percentile based on stop count
+  const calculateStopPercentile = (stopCount: number) => {
+    // Find all percentiles that have this exact stop count
+    const matchingPercentiles = stopPercentiles.filter(p => p.stop_count === stopCount);
+    
+    if (matchingPercentiles.length === 0) {
+      // If no exact match, find the highest percentile where stop count is <= our count
+      for (let i = stopPercentiles.length - 1; i >= 0; i--) {
+        if (stopCount >= stopPercentiles[i].stop_count) {
+          return stopPercentiles[i].percentile;
+        }
+      }
+      return 1; // If no stops, return 1st percentile
+    }
+    
+    // Calculate average percentile for matching stop counts
+    const averagePercentile = matchingPercentiles.reduce((sum, p) => sum + p.percentile, 0) / matchingPercentiles.length;
+    return Math.round(averagePercentile);
+  };
 
   // Initialize speech recognition
   useEffect(() => {
@@ -469,7 +592,7 @@ export default function AnySpotPage() {
                   className="w-full"
                   userLocation={searchResults.coordinates}
                   address={searchResults.formattedAddress}
-                  score={85}
+                  score={calculateStopPercentile(searchResults.totalCount)}
                 />
                 {departuresResults && (
                   <DataPanel

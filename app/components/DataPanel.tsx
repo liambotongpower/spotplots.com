@@ -87,9 +87,9 @@ export default function DataPanel({
     } else if (score > 16 && score <= 50) {
       return 'text-orange-600'; // Orange
     } else if (score > 50 && score <= 84) {
-      return 'text-yellow-600'; // Yellowy Green
+      return 'text-lime-600'; // Yellowy Green (using lime for better visibility)
     } else if (score > 84 && score <= 100) {
-      return 'text-green-500'; // Bright Green
+      return 'text-green-600'; // Bright Green
     }
     return 'text-gray-900'; // Default fallback
   };
@@ -233,7 +233,115 @@ export default function DataPanel({
   };
 
   const handleDownloadInsights = () => {
-    alert('No insights available');
+    if (title === 'Nearby Stops') {
+      // Create a simple modal without browser UI
+      const modal = document.createElement('div');
+      modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+      `;
+      
+      const content = document.createElement('div');
+      content.style.cssText = `
+        background: white;
+        padding: 24px;
+        border-radius: 8px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        max-width: 500px;
+        text-align: center;
+        font-family: system-ui, -apple-system, sans-serif;
+      `;
+      
+      content.innerHTML = `
+        <p style="margin: 0 0 16px 0; font-size: 16px; line-height: 1.5; color: #000000;">
+          ${address} is in the ${score}th percentile based on analysis of 3,123 electoral divisions across Ireland.
+        </p>
+        <button style="
+          background: #2563eb;
+          color: white;
+          border: none;
+          padding: 8px 16px;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 14px;
+        " onclick="this.closest('div').parentElement.remove()">
+          OK
+        </button>
+      `;
+      
+      modal.appendChild(content);
+      document.body.appendChild(modal);
+      
+      // Close on background click
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.remove();
+        }
+      });
+    } else if (title === 'Nearby Routes') {
+      // Create a simple modal without browser UI
+      const modal = document.createElement('div');
+      modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+      `;
+      
+      const content = document.createElement('div');
+      content.style.cssText = `
+        background: white;
+        padding: 24px;
+        border-radius: 8px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        max-width: 500px;
+        text-align: center;
+        font-family: system-ui, -apple-system, sans-serif;
+      `;
+      
+      content.innerHTML = `
+        <p style="margin: 0 0 16px 0; font-size: 16px; line-height: 1.5; color: #000000;">
+          ${address} is in the ${score}th percentile based on analysis of 3,123 electoral divisions across Ireland.
+        </p>
+        <button style="
+          background: #2563eb;
+          color: white;
+          border: none;
+          padding: 8px 16px;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 14px;
+        " onclick="this.closest('div').parentElement.remove()">
+          OK
+        </button>
+      `;
+      
+      modal.appendChild(content);
+      document.body.appendChild(modal);
+      
+      // Close on background click
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.remove();
+        }
+      });
+    } else {
+      alert('No insights available');
+    }
   };
 
   const handleOpenSettings = () => {
@@ -246,7 +354,7 @@ export default function DataPanel({
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-3">
             {score !== undefined && (
-              <span className="text-2xl font-bold text-gray-900">
+              <span className={`text-2xl font-bold ${getScoreColor(score)}`} style={{color: score > 84 ? '#16a34a' : score > 50 ? '#65a30d' : score > 16 ? '#ea580c' : '#991b1b'}}>
                 {score}
               </span>
             )}
